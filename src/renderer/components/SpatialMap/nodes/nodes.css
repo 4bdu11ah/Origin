@@ -1,0 +1,270 @@
+/* Node entry animation */
+@keyframes nodeEntry {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* System Node */
+.system-node {
+  background: var(--bg-node);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  width: 320px;
+  cursor: pointer;
+  transition: background var(--transition-default), border-color var(--transition-default), box-shadow var(--transition-default);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03), 0 4px 24px rgba(0, 0, 0, 0.4);
+  position: relative;
+  overflow: hidden;
+  animation: nodeEntry 200ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Left color bar via ::before */
+.system-node::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--node-color, var(--accent));
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.system-node:hover {
+  background: var(--bg-tertiary);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.system-node-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.system-node-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.system-node-count {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+.system-node-description {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.system-node-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.system-node-feature-tag {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  background: var(--bg-tertiary);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.system-node-feature-more {
+  color: var(--text-tertiary);
+}
+
+/* Feature Node */
+.feature-node {
+  background: var(--bg-node);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  width: 280px;
+  cursor: pointer;
+  transition: background var(--transition-default), border-color var(--transition-default), box-shadow var(--transition-default);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
+  position: relative;
+  overflow: hidden;
+  animation: nodeEntry 200ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Left color bar via ::before */
+.feature-node::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--node-color, var(--accent));
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.feature-node:hover {
+  background: var(--bg-tertiary);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+.feature-node-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.feature-node-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.feature-node-count {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  background: var(--bg-tertiary);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+}
+
+.feature-node-description {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Code Node */
+.code-node {
+  background: var(--bg-node);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  width: 280px;
+  transition: background var(--transition-default), border-color var(--transition-default), box-shadow var(--transition-default);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.2);
+  animation: nodeEntry 200ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.code-node:hover {
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
+}
+
+.code-node-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.code-node-type-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+  letter-spacing: -0.5px;
+}
+
+.code-node-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.code-node-description {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.code-node-file {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+/* Handles — invisible by default */
+.system-handle,
+.feature-handle,
+.code-handle {
+  opacity: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.system-node:hover .system-handle,
+.feature-node:hover .feature-handle,
+.code-node:hover .code-handle {
+  opacity: 0.3 !important;
+  background: var(--border-default) !important;
+}
+
+/* Light theme overrides */
+[data-theme="light"] .system-node {
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .system-node:hover {
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .feature-node {
+  border-color: rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .feature-node:hover {
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .code-node {
+  border-color: rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .code-node:hover {
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+}

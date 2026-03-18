@@ -1,0 +1,73 @@
+.spatial-map {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.back-button {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-default);
+}
+
+.back-button:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+/* React Flow overrides for dark theme */
+.spatial-map .react-flow__pane {
+  cursor: grab;
+}
+
+.spatial-map .react-flow__pane:active {
+  cursor: grabbing;
+}
+
+.spatial-map .react-flow__edge-path {
+  stroke-linecap: round;
+}
+
+.spatial-map .react-flow__minimap {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+}
+
+.spatial-map .react-flow__controls {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.spatial-map .react-flow__controls-button {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  fill: var(--text-secondary);
+}
+
+.spatial-map .react-flow__controls-button:hover {
+  background: var(--bg-tertiary);
+}

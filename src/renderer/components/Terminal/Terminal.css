@@ -1,0 +1,141 @@
+.terminal-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Tab bar */
+.terminal-tabs {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-bottom: 1px solid var(--glass-border);
+  padding: 0 4px;
+  gap: 1px;
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.terminal-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.terminal-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 8px 0 12px;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.1s ease;
+}
+
+.terminal-tab:hover {
+  background: var(--bg-tertiary);
+}
+
+.terminal-tab.active {
+  background: var(--bg-tertiary);
+  border-bottom: 2px solid var(--accent);
+}
+
+.terminal-tab-title {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.terminal-tab.active .terminal-tab-title {
+  color: var(--text-primary);
+}
+
+.terminal-tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+  transition: all 0.1s ease;
+}
+
+.terminal-tab:hover .terminal-tab-close,
+.terminal-tab.active .terminal-tab-close {
+  opacity: 1;
+}
+
+.terminal-tab-close:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.terminal-tab-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.1s ease;
+}
+
+.terminal-tab-add:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Panes */
+.terminal-panes {
+  flex: 1;
+  overflow: hidden;
+}
+
+.terminal-pane-wrapper {
+  width: 100%;
+  height: 100%;
+}
+
+.terminal-pane {
+  width: 100%;
+  height: 100%;
+  padding: 4px 8px;
+}
+
+.terminal-pane .xterm {
+  height: 100%;
+}
+
+.terminal-pane .xterm-viewport {
+  overflow-y: auto;
+}
+
+.terminal-pane .xterm-viewport::-webkit-scrollbar {
+  width: 6px;
+}
+
+.terminal-pane .xterm-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.terminal-pane .xterm-viewport::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 3px;
+}
