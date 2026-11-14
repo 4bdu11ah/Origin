@@ -1,14 +1,77 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { fork, type ChildProcess } from 'child_process'
 import path from 'path'
+import os from 'os'
 import { installSkill } from './skill-installer'
 import { MapWatcher } from './file-watcher'
-import { TerminalManager } from './terminal-manager'
 import { SettingsManager } from './settings-manager'
 
 let mainWindow: BrowserWindow | null = null
 let mapWatcher: MapWatcher | null = null
-let terminalManager: TerminalManager | null = null
 let settingsManager: SettingsManager | null = null
+
+// PTY host — a separate Node.js process that manages all PTY instances.
+// node-pty shells exit immediately when spawned from Electron's main process
+// IPC handlers, so we delegate all PTY work to a clean child process.
+let ptyHost: ChildProcess | null = null
+const activePtys = new Set<string>()
+let latestPtyId: string | null = null
+
+function startPtyHost(): void {
+  ptyHost = fork(path.join(__dirname, 'pty-host.js'), [], {
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
+  })
+
+  ptyHost.on('message', (msg: { type: string; id: string; data?: string; exitCode?: number }) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    if (msg.type === 'data') {
+      mainWindow.webContents.send('terminal:data', msg.id, msg.data)
+    } else if (msg.type === 'exit') {
+      activePtys.delete(msg.id)
+      mainWindow.webContents.send('terminal:exit', msg.id)
+    }
+  })
+
+  ptyHost.on('exit', () => {
+    ptyHost = null
+    activePtys.clear()
+  })
+}
+
+function spawnPty(id: string): void {
+  if (!ptyHost || !mainWindow) return
+  if (activePtys.has(id)) return
+
+  const shellPath = process.env.SHELL || '/bin/zsh'
+  const cwd = process.cwd()
+
+  const env: Record<string, string> = {
+    HOME: os.homedir(),
+    SHELL: shellPath,
+    USER: os.userInfo().username,
+    PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin',
+    TERM: 'xterm-256color',
+    LANG: process.env.LANG || 'en_US.UTF-8',
+    COLORTERM: 'truecolor'
+  }
+  for (const k of ['LOGNAME', 'TMPDIR', 'SSH_AUTH_SOCK']) {
+    if (process.env[k]) env[k] = process.env[k]!
+  }
+
+  activePtys.add(id)
+  latestPtyId = id
+
+  ptyHost.send({
+    type: 'spawn',
+    id,
+    shell: shellPath,
+    args: ['--login', '-i'],
+    cols: 80,
+    rows: 24,
+    cwd,
+    env
+  })
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -28,7 +91,6 @@ function createWindow(): void {
     }
   })
 
-  // Open external links in browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)
     return { action: 'deny' }
@@ -46,7 +108,6 @@ function createWindow(): void {
 }
 
 function setupIPC(): void {
-  // Map loading
   ipcMain.handle('map:load', async () => {
     if (!mapWatcher) return null
     return mapWatcher.getCurrentMap()
@@ -57,7 +118,6 @@ function setupIPC(): void {
     return mapWatcher.isStale()
   })
 
-  // Settings
   ipcMain.handle('settings:get', () => {
     return settingsManager?.get() ?? null
   })
@@ -70,22 +130,27 @@ function setupIPC(): void {
     return app.getVersion()
   })
 
-  // Terminal — all messages include a terminal ID
-  ipcMain.on('terminal:spawn', (_event, id: string) => {
-    if (!terminalManager || !mainWindow) return
-    terminalManager.spawn(id, mainWindow)
+  ipcMain.handle('terminal:spawn', (_event, id: string) => {
+    spawnPty(id)
   })
 
   ipcMain.on('terminal:write', (_event, id: string, data: string) => {
-    terminalManager?.write(id, data)
+    ptyHost?.send({ type: 'write', id, data })
   })
 
   ipcMain.on('terminal:resize', (_event, id: string, cols: number, rows: number) => {
-    terminalManager?.resize(id, cols, rows)
+    ptyHost?.send({ type: 'resize', id, cols, rows })
   })
 
   ipcMain.on('terminal:kill', (_event, id: string) => {
-    terminalManager?.kill(id)
+    activePtys.delete(id)
+    ptyHost?.send({ type: 'kill', id })
+  })
+
+  ipcMain.on('terminal:write-active', (_event, data: string) => {
+    if (latestPtyId && activePtys.has(latestPtyId)) {
+      ptyHost?.send({ type: 'write', id: latestPtyId, data })
+    }
   })
 }
 
@@ -107,10 +172,9 @@ function setupMapWatcher(): void {
 app.whenReady().then(async () => {
   await installSkill()
   settingsManager = new SettingsManager()
+
+  startPtyHost()
   setupIPC()
-
-  terminalManager = new TerminalManager()
-
   createWindow()
   setupMapWatcher()
 
@@ -123,7 +187,9 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', () => {
   mapWatcher?.stop()
-  terminalManager?.dispose()
+  ptyHost?.kill()
+  ptyHost = null
+  activePtys.clear()
   if (process.platform !== 'darwin') {
     app.quit()
   }

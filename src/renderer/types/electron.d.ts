@@ -18,6 +18,7 @@ export interface ElectronAPI {
     onExit: (callback: (id: string) => void) => () => void
     resize: (id: string, cols: number, rows: number) => void
     kill: (id: string) => void
+    writeToActive: (data: string) => void
   }
 }
 

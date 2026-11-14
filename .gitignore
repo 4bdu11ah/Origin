@@ -5,3 +5,14 @@ release/
 .DS_Store
 *.log
 .origin/
+
+# Local-only files
+private/
+CLAUDE.md
+AGENTS.md
+ai-docs/
+reports/
+research_notes/
+.claude/
+.env
+.env.*

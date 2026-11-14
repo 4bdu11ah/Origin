@@ -15,13 +15,15 @@ const nodeTypes = { system: SystemNode }
 interface ProjectViewProps {
   map: OriginMap
   onSystemClick: (systemId: string) => void
+  onShowDetail: (systemId: string) => void
+  onChatWith: (systemId: string) => void
 }
 
 function countSystemNodes(system: System): number {
   return system.features.reduce((acc, f) => acc + f.nodes.length, 0)
 }
 
-export function ProjectView({ map, onSystemClick }: ProjectViewProps) {
+export function ProjectView({ map, onSystemClick, onShowDetail, onChatWith }: ProjectViewProps) {
   const { initialNodes, initialEdges } = useMemo(() => {
     const nodes: Node[] = map.systems.map((system) => ({
       id: system.id,
@@ -30,7 +32,9 @@ export function ProjectView({ map, onSystemClick }: ProjectViewProps) {
       data: {
         system,
         nodeCount: countSystemNodes(system),
-        onClick: () => onSystemClick(system.id)
+        onClick: () => onSystemClick(system.id),
+        onShowDetail: () => onShowDetail(system.id),
+        onChatWith: () => onChatWith(system.id)
       }
     }))
 
@@ -75,7 +79,7 @@ export function ProjectView({ map, onSystemClick }: ProjectViewProps) {
     })
 
     return { initialNodes: layouted.nodes, initialEdges: layouted.edges }
-  }, [map, onSystemClick])
+  }, [map, onSystemClick, onShowDetail, onChatWith])
 
   const [nodes, , onNodesChange] = useNodesState(initialNodes)
   const [edges, , onEdgesChange] = useEdgesState(initialEdges)

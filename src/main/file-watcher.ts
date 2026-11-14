@@ -85,6 +85,9 @@ export class MapWatcher {
 
   private handleMapChange(): void {
     this.loadMap()
+    // Add a small grace window so source-file events that arrive around the
+    // same time as the map write don't immediately re-trigger staleness.
+    this.mapLastModified = Date.now()
     if (this.currentMap) {
       this.stale = false
       this.mapChangeCallbacks.forEach((cb) => cb(this.currentMap!))

@@ -16,9 +16,11 @@ interface FeatureViewProps {
   map: OriginMap
   feature: Feature
   systemColor: string
+  onShowDetail: (nodeId: string) => void
+  onChatWith: (nodeId: string) => void
 }
 
-export function FeatureView({ map, feature, systemColor }: FeatureViewProps) {
+export function FeatureView({ map, feature, systemColor, onShowDetail, onChatWith }: FeatureViewProps) {
   const { initialNodes, initialEdges } = useMemo(() => {
     const nodeIdSet = new Set(feature.nodes.map((n) => n.id))
 
@@ -28,7 +30,9 @@ export function FeatureView({ map, feature, systemColor }: FeatureViewProps) {
       position: { x: 0, y: 0 },
       data: {
         node,
-        systemColor
+        systemColor,
+        onShowDetail: () => onShowDetail(node.id),
+        onChatWith: () => onChatWith(node.id)
       }
     }))
 
@@ -55,7 +59,7 @@ export function FeatureView({ map, feature, systemColor }: FeatureViewProps) {
     })
 
     return { initialNodes: layouted.nodes, initialEdges: layouted.edges }
-  }, [map, feature, systemColor])
+  }, [map, feature, systemColor, onShowDetail, onChatWith])
 
   const [nodes, , onNodesChange] = useNodesState(initialNodes)
   const [edges, , onEdgesChange] = useEdgesState(initialEdges)

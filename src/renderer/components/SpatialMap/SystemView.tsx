@@ -16,9 +16,11 @@ interface SystemViewProps {
   map: OriginMap
   system: System
   onFeatureClick: (featureId: string) => void
+  onShowDetail: (featureId: string) => void
+  onChatWith: (featureId: string) => void
 }
 
-export function SystemView({ map, system, onFeatureClick }: SystemViewProps) {
+export function SystemView({ map, system, onFeatureClick, onShowDetail, onChatWith }: SystemViewProps) {
   const { initialNodes, initialEdges } = useMemo(() => {
     const nodes: Node[] = system.features.map((feature) => ({
       id: feature.id,
@@ -27,7 +29,9 @@ export function SystemView({ map, system, onFeatureClick }: SystemViewProps) {
       data: {
         feature,
         systemColor: system.color,
-        onClick: () => onFeatureClick(feature.id)
+        onClick: () => onFeatureClick(feature.id),
+        onShowDetail: () => onShowDetail(feature.id),
+        onChatWith: () => onChatWith(feature.id)
       }
     }))
 
@@ -77,7 +81,7 @@ export function SystemView({ map, system, onFeatureClick }: SystemViewProps) {
     })
 
     return { initialNodes: layoutedNodes, initialEdges: edges }
-  }, [map, system, onFeatureClick])
+  }, [map, system, onFeatureClick, onShowDetail, onChatWith])
 
   const [nodes, , onNodesChange] = useNodesState(initialNodes)
   const [edges, , onEdgesChange] = useEdgesState(initialEdges)

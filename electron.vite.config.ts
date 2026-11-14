@@ -1,4 +1,5 @@
 import { defineConfig } from 'electron-vite'
+import { resolve } from 'path'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
@@ -6,7 +7,11 @@ export default defineConfig({
     build: {
       outDir: 'dist/main',
       rollupOptions: {
-        external: ['node-pty']
+        external: ['node-pty'],
+        input: {
+          index: resolve(__dirname, 'src/main/index.ts'),
+          'pty-host': resolve(__dirname, 'src/main/pty-host.ts')
+        }
       }
     }
   },

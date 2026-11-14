@@ -17,6 +17,13 @@ export type EdgeType =
   | 'data-flow'
   | 'navigates'
   | 'extends'
+  | 'emits'
+  | 'configures'
+
+export type DetailItem =
+  | { kind: 'system'; system: System; edges: MapEdge[] }
+  | { kind: 'feature'; feature: Feature; systemColor: string; systemLabel: string; edges: MapEdge[] }
+  | { kind: 'node'; node: CodeNode; systemColor: string; edges: MapEdge[] }
 
 export interface CodeNode {
   id: string

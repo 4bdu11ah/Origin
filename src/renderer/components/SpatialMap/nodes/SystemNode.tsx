@@ -7,10 +7,12 @@ type SystemNodeData = {
   system: System
   nodeCount: number
   onClick: () => void
+  onShowDetail: () => void
+  onChatWith: () => void
 }
 
 export const SystemNode = memo(function SystemNode({ data }: NodeProps) {
-  const { system, nodeCount, onClick } = data as unknown as SystemNodeData
+  const { system, nodeCount, onClick, onShowDetail, onChatWith } = data as unknown as SystemNodeData
 
   return (
     <div
@@ -33,8 +35,36 @@ export const SystemNode = memo(function SystemNode({ data }: NodeProps) {
           </span>
         )}
       </div>
+      <div className="node-action-bar" onClick={(e) => e.stopPropagation()}>
+        <button className="node-action-btn" onClick={onShowDetail}>
+          <InfoIcon />
+          <span>Info</span>
+        </button>
+        <button className="node-action-btn" onClick={onChatWith}>
+          <ChatIcon />
+          <span>Chat</span>
+        </button>
+      </div>
       <Handle type="source" position={Position.Bottom} className="system-handle" />
       <Handle type="target" position={Position.Top} className="system-handle" />
     </div>
   )
 })
+
+function InfoIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+      <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M7 6.5V10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <circle cx="7" cy="4.5" r="0.75" fill="currentColor" />
+    </svg>
+  )
+}
+
+function ChatIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+      <path d="M2 2.5h10a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5H4L2 12.5V3a.5.5 0 0 1 .5-.5z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}

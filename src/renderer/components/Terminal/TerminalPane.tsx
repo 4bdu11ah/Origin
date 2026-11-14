@@ -58,8 +58,6 @@ interface TerminalPaneProps {
   id: string
 }
 
-let mountCounter = 0
-
 export function TerminalPane({ id }: TerminalPaneProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<XTerm | null>(null)
@@ -68,9 +66,6 @@ export function TerminalPane({ id }: TerminalPaneProps) {
 
   useEffect(() => {
     if (!containerRef.current) return
-
-    // Unique PTY ID per mount — avoids StrictMode kill/spawn race
-    const ptyId = `${id}-${++mountCounter}`
 
     const term = new XTerm({
       fontFamily: settings.terminalFontFamily,
@@ -83,46 +78,39 @@ export function TerminalPane({ id }: TerminalPaneProps) {
     const fitAddon = new FitAddon()
     term.loadAddon(fitAddon)
     fitAddonRef.current = fitAddon
-
-    term.open(containerRef.current)
-
-    // Small delay to ensure the container has layout before fitting
-    requestAnimationFrame(() => {
-      fitAddon.fit()
-      term.focus()
-    })
-
     termRef.current = term
 
+    term.open(containerRef.current)
+    fitAddon.fit()
+    term.focus()
+
     // Spawn a PTY for this terminal
-    window.api.terminal.spawn(ptyId)
+    window.api.terminal.spawn(id)
 
     // Send keystrokes to PTY
     const dataDisposable = term.onData((data) => {
-      window.api.terminal.write(ptyId, data)
+      window.api.terminal.write(id, data)
     })
 
-    // Receive PTY output (filtered by this terminal's PTY ID)
+    // Receive PTY output
     const unsubData = window.api.terminal.onData((termId, data) => {
-      if (termId === ptyId) {
+      if (termId === id) {
         term.write(data)
       }
     })
 
     // Handle resize
     const resizeDisposable = term.onResize(({ cols, rows }) => {
-      window.api.terminal.resize(ptyId, cols, rows)
+      window.api.terminal.resize(id, cols, rows)
     })
 
     // Fit on container resize
     const resizeObserver = new ResizeObserver(() => {
-      requestAnimationFrame(() => {
-        try {
-          fitAddon.fit()
-        } catch {
-          // Ignore fit errors during unmount
-        }
-      })
+      try {
+        fitAddon.fit()
+      } catch {
+        // Ignore fit errors
+      }
     })
     resizeObserver.observe(containerRef.current)
 
@@ -131,7 +119,7 @@ export function TerminalPane({ id }: TerminalPaneProps) {
       dataDisposable.dispose()
       resizeDisposable.dispose()
       resizeObserver.disconnect()
-      window.api.terminal.kill(ptyId)
+      window.api.terminal.kill(id)
       term.dispose()
       termRef.current = null
     }
@@ -140,7 +128,7 @@ export function TerminalPane({ id }: TerminalPaneProps) {
   // Live-update terminal font and theme settings
   useEffect(() => {
     const term = termRef.current
-    if (!term) return
+    if (!term || !term.element) return
     term.options.fontFamily = settings.terminalFontFamily
     term.options.fontSize = settings.terminalFontSize
     term.options.theme = settings.theme === 'dark' ? DARK_THEME : LIGHT_THEME

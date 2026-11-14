@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { SpatialMap } from './components/SpatialMap/SpatialMap'
 import { Terminal } from './components/Terminal/Terminal'
 import { StaleIndicator } from './components/StaleIndicator/StaleIndicator'
@@ -12,6 +12,15 @@ export default function App() {
   const [terminalOpen, setTerminalOpen] = useState(true)
   const [terminalHeight, setTerminalHeight] = useState(250)
   const [settingsOpen, setSettingsOpen] = useState(false)
+
+  const handleChatWith = useCallback((context: string) => {
+    // Open terminal if closed
+    if (!terminalOpen) setTerminalOpen(true)
+    // Write to the active PTY via IPC (main process tracks the latest terminal)
+    setTimeout(() => {
+      window.api.terminal.writeToActive(context)
+    }, terminalOpen ? 0 : 150)
+  }, [terminalOpen])
 
   return (
     <div className="app">
@@ -64,6 +73,7 @@ export default function App() {
               navigation={navigation}
               onNavigate={navigateTo}
               onNavigateBack={navigateBack}
+              onChatWith={handleChatWith}
             />
           )}
         </div>

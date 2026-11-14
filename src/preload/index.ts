@@ -25,7 +25,7 @@ contextBridge.exposeInMainWorld('api', {
   appVersion: () => ipcRenderer.invoke('app:version'),
 
   terminal: {
-    spawn: (id: string) => ipcRenderer.send('terminal:spawn', id),
+    spawn: (id: string) => ipcRenderer.invoke('terminal:spawn', id),
 
     write: (id: string, data: string) => ipcRenderer.send('terminal:write', id, data),
 
@@ -45,6 +45,8 @@ contextBridge.exposeInMainWorld('api', {
     resize: (id: string, cols: number, rows: number) =>
       ipcRenderer.send('terminal:resize', id, cols, rows),
 
-    kill: (id: string) => ipcRenderer.send('terminal:kill', id)
+    kill: (id: string) => ipcRenderer.send('terminal:kill', id),
+
+    writeToActive: (data: string) => ipcRenderer.send('terminal:write-active', data)
   }
 })
