@@ -12,7 +12,9 @@ export const AGENT_H = 172
 
 export const STATUS_LABEL: Record<AgentStatus, string> = {
   working: 'Working',
-  unread: 'New output',
+  'needs-you': 'Needs you',
+  error: 'Error',
+  unread: 'Done, unread',
   idle: 'Idle',
   exited: 'Exited'
 }
@@ -53,6 +55,7 @@ export const AgentNode = memo(function AgentNode({ data }: NodeProps) {
       className={`agent-node status-${status}${focusedId === agent.id ? ' is-focused' : ''}`}
       style={{ width: AGENT_W, height: AGENT_H }}
       onClick={() => onOpen(agent.id)}
+      data-hook={agent.hook ?? ''}
       title="Open this agent"
     >
       <Handle type="target" position={Position.Top} className="agent-handle" />

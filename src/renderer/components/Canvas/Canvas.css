@@ -35,6 +35,15 @@
   background: var(--status-unread);
 }
 
+.dot-needs-you {
+  background: var(--status-needs-you);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-needs-you) 30%, transparent);
+}
+
+.dot-error {
+  background: var(--status-error);
+}
+
 .dot-exited {
   background: var(--text-tertiary);
 }
@@ -75,6 +84,14 @@
 
 .agent-node.status-unread {
   border-left-color: var(--status-unread);
+}
+
+.agent-node.status-needs-you {
+  border-left-color: var(--status-needs-you);
+}
+
+.agent-node.status-error {
+  border-left-color: var(--status-error);
 }
 
 .agent-node.is-focused {
@@ -181,6 +198,15 @@
 
 .text-unread {
   color: var(--status-unread);
+}
+
+.text-needs-you {
+  color: var(--status-needs-you);
+  font-weight: 600;
+}
+
+.text-error {
+  color: var(--status-error);
 }
 
 .agent-handle {
@@ -510,6 +536,14 @@
   box-shadow: 0 0 0 2px var(--bg-node), 0 0 0 4px var(--status-unread);
 }
 
+.avatar.ring-needs-you {
+  box-shadow: 0 0 0 2px var(--bg-node), 0 0 0 4px var(--status-needs-you);
+}
+
+.avatar.ring-error {
+  box-shadow: 0 0 0 2px var(--bg-node), 0 0 0 4px var(--status-error);
+}
+
 .avatar.ring-conflict {
   box-shadow: 0 0 0 2px var(--bg-node), 0 0 0 4px var(--status-needs-you);
 }
@@ -537,6 +571,14 @@
 
 .amap-center.status-unread {
   border-color: color-mix(in srgb, var(--status-unread) 55%, var(--border-default));
+}
+
+.amap-center.status-needs-you {
+  border-color: color-mix(in srgb, var(--status-needs-you) 70%, var(--border-default));
+}
+
+.amap-center.status-error {
+  border-color: color-mix(in srgb, var(--status-error) 70%, var(--border-default));
 }
 
 .amap-center-head {
@@ -1007,6 +1049,12 @@
   color: var(--text-primary);
   font-weight: 600;
   background: color-mix(in srgb, var(--status-unread) 16%, var(--glass-bg));
+}
+
+.strip-chip.chip-needs-you {
+  color: var(--text-primary);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--status-needs-you) 18%, var(--glass-bg));
 }
 
 .strip-chip.is-focused {

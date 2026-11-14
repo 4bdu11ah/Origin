@@ -4,14 +4,18 @@
 // screen, including full-screen UIs like Claude Code that redraw in place.
 // Module-level store read through useSyncExternalStore; reset per project.
 //
-// Spike note: status is inferred from output activity. Real status (needs you,
-// error) comes from agent hooks in a later ticket.
+// Status: Claude agents report through hooks (working, needs you, done,
+// error), which is exact. Shells, and any agent before its first hook, fall
+// back to inferring status from terminal output.
 
 import { useSyncExternalStore } from 'react'
 import { Terminal as HeadlessTerminal } from '@xterm/headless'
 
 export type AgentKind = 'claude' | 'codex' | 'shell'
-export type AgentStatus = 'working' | 'unread' | 'idle' | 'exited'
+export type AgentStatus = 'working' | 'needs-you' | 'error' | 'unread' | 'idle' | 'exited'
+
+/** Last state reported by hooks; null while unhooked (plain shell, or agent CLI not started yet). */
+export type HookState = 'ready' | 'working' | 'needs-you' | 'done' | 'error' | null
 
 export interface Agent {
   id: string
@@ -26,6 +30,9 @@ export interface Agent {
   screen: string[]
   /** Last meaningful line on screen, for compact places like the palette. */
   lastLine: string
+  hook: HookState
+  /** Agent CLI session id, for resuming later. */
+  sessionId: string | null
 }
 
 const WORKING_WINDOW_MS = 1500
@@ -54,6 +61,10 @@ function update(id: string, patch: Partial<Agent>): void {
 
 export function statusOf(a: Agent, now = Date.now()): AgentStatus {
   if (a.exited) return 'exited'
+  if (a.hook) {
+    if (a.hook === 'working' || a.hook === 'needs-you' || a.hook === 'error') return a.hook
+    return a.unseen ? 'unread' : 'idle'
+  }
   if (now - a.lastOutputAt < WORKING_WINDOW_MS && now - a.createdAt > 800) return 'working'
   if (a.unseen) return 'unread'
   return 'idle'
@@ -101,6 +112,11 @@ function wire(): void {
     if (!agent) return
     screens.get(id)?.write(data, () => scheduleScreenRefresh(id))
     const now = Date.now()
+    // Hooked agents redraw their screen constantly; only hooks change their status.
+    if (agent.hook) {
+      update(id, { lastOutputAt: now })
+      return
+    }
     const unseen = agent.unseen || (focusedId !== id && now - agent.createdAt > STARTUP_GRACE_MS)
     if (now - agent.lastOutputAt > 250 || unseen !== agent.unseen) {
       update(id, { lastOutputAt: now, unseen })
@@ -108,6 +124,42 @@ function wire(): void {
     } else {
       update(id, { lastOutputAt: now })
     }
+  })
+  window.api.agents.onHook((e) => {
+    const agent = agents.find((a) => a.id === e.agentId)
+    if (!agent) return
+    const away = focusedId !== agent.id
+    switch (e.event) {
+      case 'SessionStart':
+        update(agent.id, { hook: 'ready', unseen: false, sessionId: e.sessionId ?? agent.sessionId })
+        break
+      case 'UserPromptSubmit':
+      case 'PreToolUse':
+      case 'PostToolUse':
+        update(agent.id, { hook: 'working' })
+        break
+      case 'PermissionRequest':
+        update(agent.id, { hook: 'needs-you', unseen: agent.unseen || away })
+        break
+      case 'Notification':
+        // "Waiting for your input" repeats after a turn ends; Stop already covered it.
+        if (e.notificationType === 'idle_prompt' || /waiting for your input/i.test(e.message ?? '')) return
+        update(agent.id, { hook: 'needs-you', unseen: agent.unseen || away })
+        break
+      case 'Stop':
+        update(agent.id, { hook: 'done', unseen: agent.unseen || away })
+        break
+      case 'StopFailure':
+        update(agent.id, { hook: 'error', unseen: agent.unseen || away })
+        break
+      case 'SessionEnd':
+        // The CLI quit; the shell is still there, so go back to inferred status.
+        update(agent.id, { hook: null, unseen: false })
+        break
+      default:
+        return
+    }
+    emit()
   })
   window.api.terminal.onExit((id) => {
     if (!agents.some((a) => a.id === id)) return
@@ -126,10 +178,6 @@ function disposeScreen(id: string): void {
   const t = refreshTimers.get(id)
   if (t) clearTimeout(t)
   refreshTimers.delete(id)
-}
-
-function shellQuote(s: string): string {
-  return `'${s.replace(/'/g, `'\\''`)}'`
 }
 
 const KIND_LABEL: Record<AgentKind, string> = { claude: 'Claude', codex: 'Codex', shell: 'Shell' }
@@ -163,18 +211,13 @@ export const agentStore = {
     screens.set(id, new HeadlessTerminal({ cols: DEFAULT_COLS, rows: DEFAULT_ROWS, scrollback: 200, allowProposedApi: true }))
     agents = [
       ...agents,
-      { id, kind, name, systemId: opts.systemId ?? null, createdAt: now, lastOutputAt: 0, unseen: false, exited: false, screen: [], lastLine: '' }
+      { id, kind, name, systemId: opts.systemId ?? null, createdAt: now, lastOutputAt: 0, unseen: false, exited: false, screen: [], lastLine: '', hook: null, sessionId: null }
     ]
     emit()
 
-    window.api.terminal.spawn(id)
+    // Main starts the agent CLI in the new shell (with Origin's status hooks for Claude).
+    window.api.terminal.spawn(id, kind === 'shell' ? undefined : { kind, prompt: opts.prompt })
     window.api.terminal.resize(id, DEFAULT_COLS, DEFAULT_ROWS)
-    // The login shell buffers typeahead, so the command runs once it's ready.
-    if (kind === 'claude') {
-      window.api.terminal.write(id, opts.prompt ? `claude ${shellQuote(opts.prompt)}\r` : 'claude\r')
-    } else if (kind === 'codex') {
-      window.api.terminal.write(id, opts.prompt ? `codex ${shellQuote(opts.prompt)}\r` : 'codex\r')
-    }
     return id
   },
 

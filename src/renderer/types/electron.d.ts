@@ -2,6 +2,15 @@ import type { OriginMap } from './map'
 import type { OriginSettings } from './settings'
 import type { ProjectInfo, RecentProject } from './project'
 
+export interface AgentHookEvent {
+  agentId: string
+  event: string
+  sessionId?: string
+  notificationType?: string
+  message?: string
+  toolName?: string
+}
+
 export interface ElectronAPI {
   loadMap: () => Promise<OriginMap | null>
   onMapUpdate: (callback: (map: OriginMap) => void) => () => void
@@ -26,8 +35,12 @@ export interface ElectronAPI {
     removeRecent: (dir: string) => Promise<RecentProject[]>
     onChange: (callback: (project: ProjectInfo | null) => void) => () => void
   }
+  agents: {
+    /** Lifecycle events from agent hooks (Claude Code), tagged with the agent id. */
+    onHook: (callback: (event: AgentHookEvent) => void) => () => void
+  }
   terminal: {
-    spawn: (id: string) => void
+    spawn: (id: string, launch?: { kind: 'claude' | 'codex'; prompt?: string }) => void
     write: (id: string, data: string) => void
     buffer: (id: string) => Promise<{ data: string; end: number; alive: boolean }>
     focus: (id: string) => void

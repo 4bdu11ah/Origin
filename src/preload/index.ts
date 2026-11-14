@@ -44,8 +44,16 @@ contextBridge.exposeInMainWorld('api', {
     }
   },
 
+  agents: {
+    onHook: (callback: (event: unknown) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, e: unknown) => callback(e)
+      ipcRenderer.on('agent:hook', handler)
+      return () => ipcRenderer.removeListener('agent:hook', handler)
+    }
+  },
+
   terminal: {
-    spawn: (id: string) => ipcRenderer.invoke('terminal:spawn', id),
+    spawn: (id: string, launch?: { kind: 'claude' | 'codex'; prompt?: string }) => ipcRenderer.invoke('terminal:spawn', id, launch),
 
     write: (id: string, data: string) => ipcRenderer.send('terminal:write', id, data),
 

@@ -27,7 +27,7 @@ const nodeTypes = { system: SystemNode, agent: AgentNode }
 const SYSTEM_W = 320
 const SYSTEM_H = 180
 const AGENT_GAP = 64
-const STATUS_ORDER = { unread: 0, working: 1, idle: 2, exited: 3 } as const
+const STATUS_ORDER = { 'needs-you': 0, error: 1, unread: 2, working: 3, idle: 4, exited: 5 } as const
 
 interface CanvasViewProps {
   map: OriginMap | null

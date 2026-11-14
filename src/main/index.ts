@@ -8,11 +8,13 @@ import { installSkill } from './skill-installer'
 import { MapWatcher } from './file-watcher'
 import { SettingsManager } from './settings-manager'
 import { ProjectManager, type ProjectInfo } from './project-manager'
+import { AgentHooks } from './agent-hooks'
 
 let mainWindow: BrowserWindow | null = null
 let mapWatcher: MapWatcher | null = null
 let settingsManager: SettingsManager | null = null
 let projectManager: ProjectManager | null = null
+let agentHooks: AgentHooks | null = null
 
 // PTY host — a separate Node.js process that manages all PTY instances.
 // node-pty shells exit immediately when spawned from Electron's main process
@@ -64,7 +66,23 @@ function startPtyHost(): void {
   })
 }
 
-function spawnPty(id: string): void {
+export type AgentLaunch = { kind: 'claude' | 'codex'; prompt?: string }
+
+function shellQuote(s: string): string {
+  return `'${s.replace(/'/g, `'\\''`)}'`
+}
+
+/** The command that starts an agent CLI. Claude gets Origin's status hooks via --settings. */
+function launchCommand(launch: AgentLaunch): string {
+  const prompt = launch.prompt ? ` ${shellQuote(launch.prompt)}` : ''
+  if (launch.kind === 'claude') {
+    const settings = agentHooks?.settingsPath && fs.existsSync(agentHooks.settingsPath) ? ` --settings ${shellQuote(agentHooks.settingsPath)}` : ''
+    return `claude${settings}${prompt}`
+  }
+  return `codex${prompt}`
+}
+
+function spawnPty(id: string, launch?: AgentLaunch): void {
   if (!ptyHost || !mainWindow) return
   if (activePtys.has(id)) return
 
@@ -83,6 +101,7 @@ function spawnPty(id: string): void {
   for (const k of ['LOGNAME', 'TMPDIR', 'SSH_AUTH_SOCK']) {
     if (process.env[k]) env[k] = process.env[k]!
   }
+  Object.assign(env, agentHooks?.env(id) ?? {})
 
   activePtys.add(id)
   latestPtyId = id
@@ -97,6 +116,8 @@ function spawnPty(id: string): void {
     cwd,
     env
   })
+  // The login shell buffers typeahead, so the command runs once it's ready.
+  if (launch) ptyHost.send({ type: 'write', id, data: launchCommand(launch) + '\r' })
 }
 
 function killAllPtys(): void {
@@ -253,8 +274,8 @@ function setupIPC(): void {
     return projectManager?.getRecent() ?? []
   })
 
-  ipcMain.handle('terminal:spawn', (_event, id: string) => {
-    spawnPty(id)
+  ipcMain.handle('terminal:spawn', (_event, id: string, launch?: AgentLaunch) => {
+    spawnPty(id, launch && (launch.kind === 'claude' || launch.kind === 'codex') ? { kind: launch.kind, prompt: typeof launch.prompt === 'string' ? launch.prompt : undefined } : undefined)
   })
 
   ipcMain.on('terminal:write', (_event, id: string, data: string) => {
@@ -355,6 +376,15 @@ app.whenReady().then(async () => {
   settingsManager = new SettingsManager()
   projectManager = new ProjectManager()
 
+  agentHooks = new AgentHooks()
+  try {
+    await agentHooks.start((e) => {
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('agent:hook', e)
+    })
+  } catch (err) {
+    console.error('Agent status hooks unavailable:', err)
+  }
+
   startPtyHost()
   setupIPC()
   buildMenu()
@@ -389,6 +419,7 @@ app.on('window-all-closed', () => {
 
 app.on('will-quit', () => {
   mapWatcher?.stop()
+  agentHooks?.stop()
   ptyHost?.kill()
   ptyHost = null
   activePtys.clear()
