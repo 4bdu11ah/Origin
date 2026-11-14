@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
 import type { MenuItemConstructorOptions } from 'electron'
-import { fork, type ChildProcess } from 'child_process'
+import { execFile, fork, type ChildProcess } from 'child_process'
+import fs from 'fs'
 import path from 'path'
 import os from 'os'
 import { installSkill } from './skill-installer'
@@ -270,6 +271,31 @@ function setupIPC(): void {
     ptyHost?.send({ type: 'kill', id })
   })
 
+  ipcMain.handle('files:changed-since', (_event, since: number) =>
+    [...fileActivity.entries()]
+      .filter(([, v]) => v.at >= since)
+      .sort((a, b) => b[1].at - a[1].at)
+      .map(([rel, v]) => ({ path: rel, at: v.at, deleted: v.deleted }))
+  )
+
+  ipcMain.handle('files:read', async (_event, rel: string) => {
+    const abs = resolveInProject(rel)
+    const stat = await fs.promises.stat(abs).catch(() => null)
+    if (!stat?.isFile()) return { content: null, reason: 'File not found' }
+    if (stat.size > 1024 * 1024) return { content: null, reason: 'File is larger than 1 MB' }
+    const buf = await fs.promises.readFile(abs)
+    if (buf.includes(0)) return { content: null, reason: 'Binary file' }
+    return { content: buf.toString('utf-8'), reason: null }
+  })
+
+  ipcMain.handle('files:diff', async (_event, rel: string) => {
+    resolveInProject(rel)
+    const root = projectManager!.getCurrent()!.path
+    const tracked = await runGit(['ls-files', '--error-unmatch', '--', rel], root)
+    if (!tracked) return { diff: null, untracked: true }
+    return { diff: await runGit(['diff', 'HEAD', '--no-color', '--', rel], root), untracked: false }
+  })
+
   ipcMain.handle('terminal:buffer', (_event, id: string) => {
     const buf = ptyOutput.get(id)
     return { data: buf?.data ?? '', end: buf?.total ?? 0, alive: activePtys.has(id) }
@@ -286,8 +312,32 @@ function setupIPC(): void {
   })
 }
 
+// Source files changed while the project is open, so an agent's space can list
+// what changed since it started. Agents share one checkout for now, so this is
+// project-wide; per-agent attribution comes from agent hooks later.
+const fileActivity = new Map<string, { at: number; deleted: boolean }>()
+
+function resolveInProject(rel: string): string {
+  const root = projectManager?.getCurrent()?.path
+  if (!root) throw new Error('No project open')
+  const abs = path.resolve(root, rel)
+  if (abs !== root && !abs.startsWith(root + path.sep)) throw new Error('Path is outside the project')
+  return abs
+}
+
+function runGit(args: string[], cwd: string): Promise<string> {
+  return new Promise((resolve) => {
+    execFile('git', args, { cwd, maxBuffer: 4 * 1024 * 1024, timeout: 5000 }, (err, stdout) => resolve(err ? '' : stdout))
+  })
+}
+
 function setupMapWatcher(projectDir: string): void {
+  fileActivity.clear()
   mapWatcher = new MapWatcher(projectDir)
+  mapWatcher.onSourceChange((event, rel) => {
+    if (event === 'addDir' || event === 'unlinkDir' || !rel) return
+    fileActivity.set(rel, { at: Date.now(), deleted: event === 'unlink' })
+  })
 
   mapWatcher.onMapChange((map) => {
     mainWindow?.webContents.send('map:updated', map)

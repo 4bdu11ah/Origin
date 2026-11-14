@@ -3,6 +3,7 @@ import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { useSettings } from '../../contexts/SettingsContext'
 import { DARK_THEME, LIGHT_THEME } from '../Terminal/TerminalPane'
+import { agentStore } from './agentStore'
 import '@xterm/xterm/css/xterm.css'
 
 interface LiveTerminalProps {
@@ -66,10 +67,14 @@ export function LiveTerminal({ id, focused }: LiveTerminalProps) {
       for (const p of pending) writeLive(p.data, p.offset)
       pending.length = 0
       window.api.terminal.resize(id, term.cols, term.rows)
+      agentStore.setSize(id, term.cols, term.rows)
     })
 
     const dataDisposable = term.onData((data) => window.api.terminal.write(id, data))
-    const resizeDisposable = term.onResize(({ cols, rows }) => window.api.terminal.resize(id, cols, rows))
+    const resizeDisposable = term.onResize(({ cols, rows }) => {
+      window.api.terminal.resize(id, cols, rows)
+      agentStore.setSize(id, cols, rows)
+    })
     const ro = new ResizeObserver(() => {
       try {
         fit.fit()

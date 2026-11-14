@@ -12,6 +12,11 @@ export interface ElectronAPI {
     update: (partial: Partial<OriginSettings>) => Promise<OriginSettings>
   }
   appVersion: () => Promise<string>
+  files: {
+    changedSince: (since: number) => Promise<Array<{ path: string; at: number; deleted: boolean }>>
+    read: (rel: string) => Promise<{ content: string | null; reason: string | null }>
+    diff: (rel: string) => Promise<{ diff: string | null; untracked: boolean }>
+  }
   project: {
     current: () => Promise<ProjectInfo | null>
     recent: () => Promise<RecentProject[]>

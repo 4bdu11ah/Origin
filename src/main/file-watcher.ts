@@ -25,6 +25,7 @@ export class MapWatcher {
   private stale = false
   private mapChangeCallbacks: MapChangeCallback[] = []
   private staleChangeCallbacks: StaleChangeCallback[] = []
+  private sourceChangeCallbacks: Array<(event: string, relPath: string) => void> = []
   private mapLastModified = 0
 
   constructor(projectDir: string) {
@@ -72,7 +73,8 @@ export class MapWatcher {
       persistent: true
     })
 
-    this.srcWatcher.on('all', (_event, filePath) => {
+    this.srcWatcher.on('all', (event, filePath) => {
+      this.sourceChangeCallbacks.forEach((cb) => cb(event, path.relative(this.projectDir, filePath)))
       // Source file changed — map might be stale
       if (this.currentMap && !this.stale) {
         const fileStat = fs.statSync(filePath, { throwIfNoEntry: false })
@@ -115,5 +117,10 @@ export class MapWatcher {
 
   onStaleChange(callback: StaleChangeCallback): void {
     this.staleChangeCallbacks.push(callback)
+  }
+
+  /** Every add/change/unlink of a (non-ignored) source file, path relative to the project. */
+  onSourceChange(callback: (event: string, relPath: string) => void): void {
+    this.sourceChangeCallbacks.push(callback)
   }
 }

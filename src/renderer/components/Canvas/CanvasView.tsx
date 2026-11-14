@@ -14,7 +14,8 @@ import { useSettings } from '../../contexts/SettingsContext'
 import { getLayoutedElements } from '../SpatialMap/layout'
 import { SystemNode } from '../SpatialMap/nodes/SystemNode'
 import { DetailPanel } from '../SpatialMap/DetailPanel'
-import { AgentNode, AGENT_H, AGENT_W, STATUS_LABEL } from './AgentNode'
+import { AgentNode, AGENT_H, AGENT_W, FileChangesContext, STATUS_LABEL, type FileChange } from './AgentNode'
+import { AgentSpace } from './AgentSpace'
 import { agentStore, statusOf, useAgents, type Agent, type AgentKind } from './agentStore'
 import { CommandPalette, type PaletteItem } from './CommandPalette'
 import './Canvas.css'
@@ -53,8 +54,32 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
   const [detail, setDetail] = useState<DetailItem | null>(null)
   const pendingFocus = useRef<string | null>(null)
   const dragged = useRef(new Map<string, { x: number; y: number }>())
+  const [insideId, setInsideId] = useState<string | null>(null)
+  const [changes, setChanges] = useState<FileChange[]>([])
 
   useEffect(() => agentStore.resetFor(projectPath), [projectPath])
+
+  // Poll project file changes since the oldest agent started (cheap: main keeps them in memory).
+  const oldestAgent = agents.reduce((min, a) => Math.min(min, a.createdAt), Infinity)
+  useEffect(() => {
+    if (!Number.isFinite(oldestAgent)) {
+      setChanges([])
+      return
+    }
+    let cancelled = false
+    const poll = () => window.api.files.changedSince(oldestAgent).then((c) => !cancelled && setChanges(c))
+    poll()
+    const t = setInterval(poll, 2000)
+    return () => {
+      cancelled = true
+      clearInterval(t)
+    }
+  }, [oldestAgent])
+
+  // Leave the agent space if its agent goes away.
+  useEffect(() => {
+    if (insideId && !agents.some((a) => a.id === insideId)) setInsideId(null)
+  }, [agents, insideId])
 
   const systems = useMemo(() => {
     if (!map) return []
@@ -68,6 +93,7 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
   }, [])
 
   const overview = useCallback(() => {
+    setInsideId(null)
     agentStore.focus(null)
     rf.fitView({ padding: 0.12, duration: 450 })
   }, [rf])
@@ -82,10 +108,19 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
     [rf, paneW, paneH]
   )
 
+  // Entering an agent: zoom into its card, then open its space. Switching
+  // between agents while already inside skips the flight.
+  const insideRef = useRef<string | null>(null)
+  insideRef.current = insideId
   const openAgent = useCallback(
     (id: string) => {
       agentStore.focus(id)
-      flyToNode(id, AGENT_W, AGENT_H, 1.6)
+      if (insideRef.current) {
+        setInsideId(id)
+        return
+      }
+      flyToNode(id, AGENT_W, AGENT_H, 2.2)
+      setTimeout(() => setInsideId(id), 380)
     },
     [flyToNode]
   )
@@ -215,7 +250,10 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
     return [...agents].sort((a, b) => STATUS_ORDER[statusOf(a, now)] - STATUS_ORDER[statusOf(b, now)] || a.createdAt - b.createdAt)
   }, [agents])
 
+  const insideAgent = insideId ? agents.find((a) => a.id === insideId) : undefined
+
   return (
+    <FileChangesContext.Provider value={changes}>
     <div
       className="canvas-view"
       onDoubleClick={(e) => {
@@ -249,9 +287,11 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
         </div>
       )}
 
+      {insideAgent && <AgentSpace key={insideAgent.id} agent={insideAgent} onBack={overview} />}
       {paletteOpen && <CommandPalette items={paletteItems} onClose={() => setPaletteOpen(false)} />}
       {detail && <DetailPanel item={detail} onClose={() => setDetail(null)} />}
     </div>
+    </FileChangesContext.Provider>
   )
 }
 

@@ -24,6 +24,12 @@ contextBridge.exposeInMainWorld('api', {
 
   appVersion: () => ipcRenderer.invoke('app:version'),
 
+  files: {
+    changedSince: (since: number) => ipcRenderer.invoke('files:changed-since', since),
+    read: (rel: string) => ipcRenderer.invoke('files:read', rel),
+    diff: (rel: string) => ipcRenderer.invoke('files:diff', rel)
+  },
+
   project: {
     current: () => ipcRenderer.invoke('project:current'),
     recent: () => ipcRenderer.invoke('project:recent'),
