@@ -66,7 +66,7 @@ function Workspace({ project }: { project: ProjectInfo }) {
           <button
             className="app-project-name titlebar-no-drag"
             onClick={() => window.api.project.close()}
-            title={`${project.path}\nClick to switch project`}
+            title={`${project.path}\nBack to home (agents are saved and come back)`}
           >
             {project.name}
           </button>
@@ -82,6 +82,9 @@ function Workspace({ project }: { project: ProjectInfo }) {
         </div>
         <div className="app-header-right titlebar-no-drag">
           {isStale && <StaleIndicator />}
+          <button className="view-toggle new-window" onClick={() => window.api.project.newWindow()} title="Open another project in a new window (⌘⇧N)">
+            + New window
+          </button>
           <button
             className="view-toggle"
             onClick={toggleViewMode}

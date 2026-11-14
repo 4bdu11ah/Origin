@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld('api', {
     open: (dir: string) => ipcRenderer.invoke('project:open', dir),
     close: () => ipcRenderer.invoke('project:close'),
     removeRecent: (dir: string) => ipcRenderer.invoke('project:remove-recent', dir),
+    newWindow: () => ipcRenderer.invoke('window:new'),
     onChange: (callback: (project: unknown) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, project: unknown) => callback(project)
       ipcRenderer.on('project:changed', handler)

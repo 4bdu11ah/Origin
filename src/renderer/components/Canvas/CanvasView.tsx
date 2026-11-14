@@ -61,7 +61,12 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
   const [insideId, setInsideId] = useState<string | null>(null)
   const [changes, setChanges] = useState<FileChange[]>([])
 
-  useEffect(() => agentStore.resetFor(projectPath), [projectPath])
+  // Load this project's agents; forget them when the window goes back to home
+  // (main has already stopped their terminals and kept them saved).
+  useEffect(() => {
+    agentStore.resetFor(projectPath)
+    return () => agentStore.detach()
+  }, [projectPath])
 
   // Poll project file changes since the oldest agent started (cheap: main keeps them in memory).
   const oldestAgent = agents.reduce((min, a) => Math.min(min, a.createdAt), Infinity)

@@ -46,20 +46,36 @@ function clean(r: unknown): AgentRecord | null {
 
 export class AgentRecordStore {
   private readonly dir = path.join(app.getPath('userData'), 'agents')
-  /** Saves are ignored while frozen: terminals being torn down must not erase what was open. */
-  private frozen = false
+  /** Projects whose saves are ignored: their terminals are being torn down, which must not erase what was open. */
+  private frozen = new Set<string>()
+  /** The app is quitting: keep every saved list as it is. */
+  private quitting = false
 
   private fileFor(projectPath: string): string {
     const key = crypto.createHash('sha1').update(projectPath).digest('hex').slice(0, 16)
     return path.join(this.dir, `${key}.json`)
   }
 
-  freeze(): void {
-    this.frozen = true
+  freeze(projectPath: string): void {
+    this.frozen.add(projectPath)
+  }
+
+  freezeAll(): void {
+    this.quitting = true
+  }
+
+  /** Number of agents that would come back when the project opens. */
+  openCount(projectPath: string): number {
+    try {
+      const raw = JSON.parse(fs.readFileSync(this.fileFor(projectPath), 'utf8')) as { open?: Array<{ exited?: boolean }> }
+      return Array.isArray(raw.open) ? raw.open.filter((r) => !r?.exited).length : 0
+    } catch {
+      return 0
+    }
   }
 
   load(projectPath: string): AgentRecords {
-    this.frozen = false
+    this.frozen.delete(projectPath)
     try {
       const raw = JSON.parse(fs.readFileSync(this.fileFor(projectPath), 'utf8')) as Record<string, unknown>
       const list = (v: unknown) => (Array.isArray(v) ? v.map(clean).filter((r): r is AgentRecord => r !== null) : [])
@@ -70,7 +86,7 @@ export class AgentRecordStore {
   }
 
   save(projectPath: string, data: unknown): void {
-    if (this.frozen || !data || typeof data !== 'object') return
+    if (this.quitting || this.frozen.has(projectPath) || !data || typeof data !== 'object') return
     const d = data as Record<string, unknown>
     const list = (v: unknown) => (Array.isArray(v) ? v.map(clean).filter((r): r is AgentRecord => r !== null) : [])
     const records: AgentRecords = { open: list(d.open), closed: list(d.closed).slice(0, MAX_CLOSED) }

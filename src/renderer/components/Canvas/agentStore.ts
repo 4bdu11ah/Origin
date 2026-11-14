@@ -265,6 +265,17 @@ export const agentStore = {
     })
   },
 
+  /** Forgets the loaded project (window went back to home). Saved agents stay on disk. */
+  detach(): void {
+    projectKey = null
+    loadedFor = null
+    for (const id of [...screens.keys()]) disposeScreen(id)
+    agents = []
+    closed = []
+    focusedId = null
+    emit()
+  },
+
   create(kind: AgentKind, opts: { systemId?: string | null; systemLabel?: string; prompt?: string } = {}): string {
     wire()
     const id = `agent-${Date.now().toString(36)}-${++counter}`

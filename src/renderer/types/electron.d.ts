@@ -49,6 +49,8 @@ export interface ElectronAPI {
     open: (dir: string) => Promise<ProjectInfo>
     close: () => Promise<void>
     removeRecent: (dir: string) => Promise<RecentProject[]>
+    /** Opens another window on the home screen. */
+    newWindow: () => Promise<void>
     onChange: (callback: (project: ProjectInfo | null) => void) => () => void
   }
   agents: {

@@ -3,9 +3,14 @@ import os from 'os'
 import path from 'path'
 import { app } from 'electron'
 
+// Recent projects and which ones were open in a window. One window holds one
+// project, like VS Code; the windows open at quit (or at a crash) come back
+// on the next launch.
+
 export interface ProjectInfo {
   path: string
   name: string
+  /** When the project was last opened in a window. */
   openedAt: number
 }
 
@@ -16,11 +21,11 @@ export interface RecentProject extends ProjectInfo {
 
 interface StoredProjects {
   recent: ProjectInfo[]
-  // Project open when the app last quit; reopened on launch. Null after an explicit close.
-  last: string | null
+  /** Projects open in a window, restored on launch. */
+  open: string[]
 }
 
-const MAX_RECENT = 12
+const MAX_RECENT = 20
 
 function isDirectory(p: string): boolean {
   try {
@@ -38,7 +43,6 @@ function displayPath(p: string): string {
 export class ProjectManager {
   private file = path.join(app.getPath('userData'), 'projects.json')
   private data: StoredProjects
-  private current: ProjectInfo | null = null
 
   constructor() {
     this.data = this.load()
@@ -47,12 +51,15 @@ export class ProjectManager {
   private load(): StoredProjects {
     try {
       const raw = JSON.parse(fs.readFileSync(this.file, 'utf-8'))
-      const recent = Array.isArray(raw?.recent)
-        ? raw.recent.filter((p: ProjectInfo) => typeof p?.path === 'string')
-        : []
-      return { recent, last: typeof raw?.last === 'string' ? raw.last : null }
+      const recent = Array.isArray(raw?.recent) ? raw.recent.filter((p: ProjectInfo) => typeof p?.path === 'string') : []
+      const open = Array.isArray(raw?.open)
+        ? raw.open.filter((p: unknown) => typeof p === 'string')
+        : typeof raw?.last === 'string'
+          ? [raw.last] // older single-project format
+          : []
+      return { recent, open }
     } catch {
-      return { recent: [], last: null }
+      return { recent: [], open: [] }
     }
   }
 
@@ -64,50 +71,38 @@ export class ProjectManager {
     }
   }
 
-  getCurrent(): ProjectInfo | null {
-    return this.current
-  }
-
   getRecent(): RecentProject[] {
-    return this.data.recent.map((p) => ({
-      ...p,
-      displayPath: displayPath(p.path),
-      missing: !isDirectory(p.path)
-    }))
+    return this.data.recent.map((p) => ({ ...p, displayPath: displayPath(p.path), missing: !isDirectory(p.path) }))
   }
 
-  /** Project to reopen on launch, if it still exists. */
-  getLastOpen(): string | null {
-    return this.data.last && isDirectory(this.data.last) ? this.data.last : null
+  /** Projects that were open in windows, if they still exist. */
+  getOpenAtLastRun(): string[] {
+    return this.data.open.filter(isDirectory)
   }
 
-  /** Marks a folder as the current project. Throws if it isn't a directory. */
-  open(dir: string): ProjectInfo {
+  setOpen(paths: string[]): void {
+    this.data.open = [...new Set(paths)]
+    this.save()
+  }
+
+  /** Resolves a folder and records it as just opened. Throws if it isn't a directory. */
+  touch(dir: string): ProjectInfo {
     const resolved = fs.realpathSync(path.resolve(dir))
     if (!isDirectory(resolved)) throw new Error(`Not a folder: ${dir}`)
-
     const info: ProjectInfo = { path: resolved, name: path.basename(resolved), openedAt: Date.now() }
     this.data.recent = [info, ...this.data.recent.filter((p) => p.path !== resolved)].slice(0, MAX_RECENT)
-    this.data.last = resolved
-    this.current = info
     this.save()
     return info
   }
 
-  close(): void {
-    this.current = null
-    this.data.last = null
-    this.save()
-  }
-
   removeRecent(dir: string): void {
     this.data.recent = this.data.recent.filter((p) => p.path !== dir)
-    if (this.data.last === dir) this.data.last = null
     this.save()
   }
 
-  clearRecent(): void {
-    this.data.recent = this.current ? this.data.recent.filter((p) => p.path === this.current!.path) : []
+  /** Clears the list, keeping projects that are open right now. */
+  clearRecent(keep: string[]): void {
+    this.data.recent = this.data.recent.filter((p) => keep.includes(p.path))
     this.save()
   }
 }
