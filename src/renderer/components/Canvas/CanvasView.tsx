@@ -19,6 +19,8 @@ import { AgentSpace, setAgentTab } from './AgentSpace'
 import { ActivityContext, sampleActivity, type AgentActivity } from './agentActivity'
 import { agentStore, statusOf, useAgents, type Agent, type AgentKind } from './agentStore'
 import { CommandPalette, type PaletteItem } from './CommandPalette'
+import { Avatar } from './Avatar'
+import { displayName, personaFor } from './personas'
 import './Canvas.css'
 
 const nodeTypes = { system: SystemNode, agent: AgentNode }
@@ -242,7 +244,7 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
       { id: 'new-codex', label: 'New Codex agent', hint: 'Unassigned', run: () => createAgent('codex') },
       { id: 'new-shell', label: 'New shell', hint: 'Plain terminal', run: () => createAgent('shell') }
     ]
-    for (const a of agents) items.push({ id: a.id, label: a.name, hint: `Agent · ${STATUS_LABEL[statusOf(a)]}`, dot: statusOf(a), run: () => openAgent(a.id) })
+    for (const a of agents) items.push({ id: a.id, label: displayName(personaFor(a.id), a.name), hint: `Agent · ${STATUS_LABEL[statusOf(a)]}`, dot: statusOf(a), run: () => openAgent(a.id) })
     for (const s of systems) items.push({ id: s.id, label: s.label, hint: 'System', run: () => flyToNode(s.id, SYSTEM_W, SYSTEM_H, 1.4) })
     return items
   }, [agents, systems, overview, createAgent, openAgent, flyToNode])
@@ -349,8 +351,9 @@ function AttentionStrip({
               onClick={() => onOpen(a.id)}
               title={`${a.name} · ${STATUS_LABEL[status]}`}
             >
+              <Avatar persona={personaFor(a.id)} size={18} />
+              {displayName(personaFor(a.id), a.name)}
               <span className={`agent-dot dot-${status}`} />
-              {a.name}
             </button>
           )
         })}

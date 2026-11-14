@@ -2,6 +2,8 @@ import { createContext, memo, useContext } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { statusOf, useAgents, type Agent, type AgentStatus } from './agentStore'
 import { ActivityContext } from './agentActivity'
+import { Avatar } from './Avatar'
+import { displayName, personaFor, roleOf } from './personas'
 
 // Agents on the overview are cards the size of system cards. Their terminal
 // and files live inside the agent (AgentSpace), not on the canvas.
@@ -42,6 +44,7 @@ export const AgentNode = memo(function AgentNode({ data }: NodeProps) {
   if (!agent) return null
 
   const status = statusOf(agent)
+  const persona = personaFor(agent.id)
   const ticket = activity?.tickets[0]
   const overlap = activity?.peers.find((p) => p.relation === 'overlaps')
 
@@ -54,8 +57,11 @@ export const AgentNode = memo(function AgentNode({ data }: NodeProps) {
     >
       <Handle type="target" position={Position.Top} className="agent-handle" />
       <div className="agent-node-header">
-        <span className={`agent-dot dot-${status}`} />
-        <span className="agent-node-name">{agent.name}</span>
+        <Avatar persona={persona} ring={status} size={34} />
+        <span className="agent-node-who">
+          <span className="agent-node-name">{displayName(persona, agent.name)}</span>
+          <span className="agent-node-role">{roleOf(persona)}</span>
+        </span>
         <span className="agent-node-kind">{agent.kind}</span>
         <button
           className="agent-node-close nodrag"

@@ -4,6 +4,8 @@ import { changesFor, FileChangesContext, STATUS_LABEL } from './AgentNode'
 import { AgentMap } from './AgentMap'
 import { agentStore, statusOf, useAgents, type Agent } from './agentStore'
 import type { ActivityStep, AgentActivity } from './agentActivity'
+import { Avatar } from './Avatar'
+import { displayName, personaFor, roleOf } from './personas'
 
 export type SpaceTab = 'steps' | 'terminal' | 'files'
 
@@ -56,8 +58,9 @@ export function AgentSpace({ agent, activity, onBack, onOpenAgent }: AgentSpaceP
         <button className="strip-btn" onClick={onBack} title="Back to the overview">
           ← Overview
         </button>
-        <span className={`agent-dot dot-${status}`} />
-        <span className="agent-space-name">{agent.name}</span>
+        <Avatar persona={personaFor(agent.id)} ring={status} size={28} />
+        <span className="agent-space-name">{displayName(personaFor(agent.id), agent.name)}</span>
+        <span className="agent-space-role">{roleOf(personaFor(agent.id))}</span>
         <span className="agent-node-kind">{agent.kind}</span>
         <span className={`agent-space-status text-${status}`}>{STATUS_LABEL[status]}</span>
         <button

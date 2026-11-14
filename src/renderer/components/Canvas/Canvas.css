@@ -88,6 +88,18 @@
   padding: 14px 10px 0 16px;
 }
 
+.agent-node-who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.agent-node-role,
+.agent-space-role {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
 .agent-node-name {
   min-width: 0;
   overflow: hidden;
@@ -437,9 +449,6 @@
 .amap {
   position: absolute;
   inset: 0;
-  --kind-claude: #d39a6a;
-  --kind-codex: #6f9be8;
-  --kind-shell: #8b8b96;
 }
 
 .amap-sample {
@@ -473,46 +482,41 @@
   color: var(--status-needs-you);
 }
 
-/* Avatars: agents are people-shaped, coloured by kind, ringed by status. */
-.amap-avatar {
+/* Avatars: employees are mascots on their colour, contractors share one
+   default picture. The ring shows status. */
+.avatar {
   flex-shrink: 0;
-  display: grid;
+  display: inline-grid;
   place-items: center;
-  font-weight: 700;
-  letter-spacing: -0.2px;
-  color: #0b0b0c;
-  background: var(--kind-shell);
+  overflow: hidden;
+  line-height: 1;
   border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--bg-node), 0 0 0 3.5px var(--border-default);
+  user-select: none;
 }
 
-.amap-avatar.kind-claude {
-  background: var(--kind-claude);
+.avatar-employee {
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--avatar) 55%, transparent), color-mix(in srgb, var(--avatar) 22%, var(--bg-node)));
 }
 
-.amap-avatar.kind-codex {
-  background: var(--kind-codex);
-}
-
-.amap-avatar.kind-unknown {
-  color: var(--text-secondary);
+.avatar-contractor {
   background: var(--bg-elevated);
 }
 
-.amap-avatar.ring-working {
+.avatar.ring-working {
   box-shadow: 0 0 0 2px var(--bg-node), 0 0 0 4px var(--status-working);
 }
 
-.amap-avatar.ring-unread {
+.avatar.ring-unread {
   box-shadow: 0 0 0 2px var(--bg-node), 0 0 0 4px var(--status-unread);
 }
 
-.amap-avatar.ring-conflict {
+.avatar.ring-conflict {
   box-shadow: 0 0 0 2px var(--bg-node), 0 0 0 4px var(--status-needs-you);
 }
 
-.amap-avatar.ring-exited {
-  opacity: 0.5;
+.avatar.ring-exited {
+  filter: grayscale(1);
+  opacity: 0.55;
 }
 
 /* The agent itself */
@@ -558,7 +562,6 @@
 
 .amap-center-status {
   font-size: 12px;
-  text-transform: capitalize;
   color: var(--text-tertiary);
 }
 

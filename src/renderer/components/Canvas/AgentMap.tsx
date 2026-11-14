@@ -1,17 +1,20 @@
 import { memo, useEffect, useMemo, useRef, type CSSProperties } from 'react'
 import { Background, BackgroundVariant, Handle, Position, ReactFlow, ReactFlowProvider, useReactFlow, type Edge, type Node, type NodeProps } from '@xyflow/react'
 import { STATUS_LABEL } from './AgentNode'
-import { statusOf, type Agent, type AgentKind, type AgentStatus } from './agentStore'
+import { statusOf, type Agent, type AgentStatus } from './agentStore'
+import { Avatar } from './Avatar'
+import { displayName, personaFor, roleOf } from './personas'
 import { TICKET_STATUS_LABEL, type ActivityPeer, type ActivitySystem, type ActivityTicket, type AgentActivity, type TicketStatus } from './agentActivity'
 
 // A picture of what one agent is doing. Each kind of thing has its own shape,
-// so it reads at a glance: agents are round avatars, tickets are square cards
+// so it reads at a glance: agents are faces (employee mascots or the
+// contractor picture), tickets are square cards
 // with a status ring, systems are coloured pills, findings are dashed cards.
 // Tickets above, the agent's peers left, findings right, systems below.
 
-const CENTER = { w: 340, h: 132 }
+const CENTER = { w: 340, h: 140 }
 const TICKET = { w: 280, h: 72 }
-const PEER = { w: 260, h: 70 }
+const PEER = { w: 260, h: 72 }
 const SYSTEM = { w: 190, h: 44 }
 const GAP = 22
 const LABEL_H = 26
@@ -32,22 +35,6 @@ function Handles() {
   )
 }
 
-/** Short monogram: "Shell 3" -> S3, "Payments · Claude" -> PC. */
-function initials(name: string): string {
-  const words = name.split(/[\s·]+/).filter(Boolean)
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
-  const last = words[words.length - 1]
-  return (words[0][0] + (/^\d+$/.test(last) ? last : last[0])).toUpperCase().slice(0, 3)
-}
-
-function Avatar({ name, kind, status, size }: { name: string; kind: AgentKind | null; status: AgentStatus | 'conflict' | null; size: number }) {
-  return (
-    <span className={`amap-avatar kind-${kind ?? 'unknown'}${status ? ` ring-${status}` : ''}`} style={{ width: size, height: size, fontSize: Math.round(size * 0.36) }}>
-      {initials(name)}
-    </span>
-  )
-}
-
 /** Ticket status ring, in the spirit of Linear: empty, half, three-quarters, done. */
 function StatusIcon({ status }: { status: TicketStatus }) {
   const fill = { todo: 0, 'in-progress': 0.5, 'in-review': 0.75, done: 1 }[status]
@@ -65,15 +52,16 @@ function StatusIcon({ status }: { status: TicketStatus }) {
 
 const CenterNode = memo(function CenterNode({ data }: NodeProps) {
   const { agent, status, now } = data as { agent: Agent; status: AgentStatus; now: string }
+  const persona = personaFor(agent.id)
   return (
     <div className={`amap-center status-${status}`} style={{ width: CENTER.w, height: CENTER.h }}>
       <Handles />
       <div className="amap-center-head">
-        <Avatar name={agent.name} kind={agent.kind} status={status} size={40} />
+        <Avatar persona={persona} ring={status} size={48} />
         <div className="amap-center-id">
-          <span className="amap-center-name">{agent.name}</span>
-          <span className={`amap-center-status text-${status}`}>
-            {agent.kind} · {STATUS_LABEL[status]}
+          <span className="amap-center-name">{displayName(persona, agent.name)}</span>
+          <span className="amap-center-status">
+            {roleOf(persona)} · <span className={`text-${status}`}>{STATUS_LABEL[status]}</span>
           </span>
         </div>
       </div>
@@ -98,18 +86,19 @@ const TicketNode = memo(function TicketNode({ data }: NodeProps) {
 })
 
 const PeerNode = memo(function PeerNode({ data }: NodeProps) {
-  const { peer, kind, status, onOpen } = data as { peer: ActivityPeer; kind: AgentKind | null; status: AgentStatus | null; onOpen: (id: string) => void }
+  // Clicks are handled by the map's onNodeClick (nodes here are not selectable, so
+  // React Flow only lets pointer events through when that handler is set).
+  const { peer, status } = data as { peer: ActivityPeer; status: AgentStatus | null }
   const conflict = peer.relation === 'overlaps'
-  const open = peer.agentId ? () => onOpen(peer.agentId!) : undefined
+  const link = !!peer.agentId
   return (
     <div
-      className={`amap-peer${conflict ? ' is-conflict' : ''}${open ? ' is-link' : ''}`}
+      className={`amap-peer${conflict ? ' is-conflict' : ''}${link ? ' is-link' : ''}`}
       style={{ width: PEER.w, height: PEER.h }}
-      onClick={open}
-      title={open ? `Open ${peer.name}` : undefined}
+      title={link ? `Open ${peer.name}` : undefined}
     >
       <Handles />
-      <Avatar name={peer.name} kind={kind} status={conflict ? 'conflict' : status} size={34} />
+      <Avatar persona={peer.persona} ring={conflict ? 'conflict' : status} size={40} />
       <div className="amap-peer-text">
         <span className="amap-peer-name">{peer.name}</span>
         <span className="amap-peer-detail">{peer.detail}</span>
@@ -171,7 +160,7 @@ function AgentMapInner({ agent, agents, activity, onOpenAgent }: AgentMapProps) 
   const peerKey = activity.peers
     .map((p) => {
       const a = agents.find((x) => x.id === p.agentId)
-      return a ? `${a.id}:${a.kind}:${statusOf(a)}` : p.name
+      return a ? `${a.id}:${statusOf(a)}` : p.name
     })
     .join(',')
 
@@ -215,7 +204,7 @@ function AgentMapInner({ agent, agents, activity, onOpenAgent }: AgentMapProps) 
       for (const p of g.items) {
         const id = `peer-${activity.peers.indexOf(p)}`
         const real = agents.find((a) => a.id === p.agentId)
-        nodes.push({ id, type: 'peer', position: { x: peerX, y }, data: { peer: p, kind: real?.kind ?? null, status: real ? statusOf(real) : null, onOpen: onOpenAgent } })
+        nodes.push({ id, type: 'peer', position: { x: peerX, y }, data: { peer: p, status: real ? statusOf(real) : null } })
         edges.push(
           g.warn
             ? edge(`e-${id}`, 'agent', Position.Left, id, Position.Right, { stroke: 'var(--status-needs-you)', strokeDasharray: '6 5', strokeWidth: 2 }, {
@@ -271,6 +260,10 @@ function AgentMapInner({ agent, agents, activity, onOpenAgent }: AgentMapProps) 
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        onNodeClick={(_e, node) => {
+          const peer = node.type === 'peer' ? (node.data as { peer: ActivityPeer }).peer : null
+          if (peer?.agentId) onOpenAgent(peer.agentId)
+        }}
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={false}

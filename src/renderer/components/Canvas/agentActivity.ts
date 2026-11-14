@@ -7,6 +7,7 @@
 
 import { createContext } from 'react'
 import type { Agent } from './agentStore'
+import { CONTRACTOR, displayName, personaFor, SAMPLE_REVIEWER, type Persona } from './personas'
 
 export type TicketStatus = 'todo' | 'in-progress' | 'in-review' | 'done'
 
@@ -26,6 +27,7 @@ export interface ActivityPeer {
   /** Set when the peer is a real agent on the canvas, so it can be opened. */
   agentId: string | null
   name: string
+  persona: Persona
   relation: 'works-with' | 'overlaps'
   /** Why they are linked: what they share or hand over. */
   detail: string
@@ -248,11 +250,11 @@ export function sampleActivity(
   const others = ctx.agents.filter((a) => a.id !== agent.id)
   const peers: ActivityPeer[] = [
     others[0]
-      ? { agentId: others[0].id, name: others[0].name, relation: 'works-with', detail: scenario.together }
-      : { agentId: null, name: 'Reviewer · Claude', relation: 'works-with', detail: scenario.together },
+      ? { agentId: others[0].id, name: displayName(personaFor(others[0].id), others[0].name), persona: personaFor(others[0].id), relation: 'works-with', detail: scenario.together }
+      : { agentId: null, name: SAMPLE_REVIEWER.nickname, persona: SAMPLE_REVIEWER, relation: 'works-with', detail: scenario.together },
     others[1]
-      ? { agentId: others[1].id, name: others[1].name, relation: 'overlaps', detail: scenario.overlap }
-      : { agentId: null, name: 'Billing · Codex', relation: 'overlaps', detail: scenario.overlap }
+      ? { agentId: others[1].id, name: displayName(personaFor(others[1].id), others[1].name), persona: personaFor(others[1].id), relation: 'overlaps', detail: scenario.overlap }
+      : { agentId: null, name: 'Contractor', persona: CONTRACTOR, relation: 'overlaps', detail: scenario.overlap }
   ]
 
   return {
