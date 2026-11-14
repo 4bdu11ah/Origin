@@ -400,6 +400,11 @@
 
 .canvas-view .map-link.is-context .react-flow__edge-path {
   stroke-dasharray: 3 5;
+  opacity: 0.55;
+}
+
+.canvas-view .map-link.is-context.is-lit .react-flow__edge-path {
+  opacity: 1;
 }
 
 .canvas-view .map-link.is-lit .react-flow__edge-path {
@@ -458,6 +463,7 @@
 
 .map-ask,
 .map-up,
+.map-toggle,
 .map-lang button {
   padding: 5px 12px;
   border: 1px solid var(--border-subtle);
@@ -489,6 +495,18 @@
 
 .canvas-view.has-panel .map-corner {
   right: 372px;
+}
+
+.map-toggle {
+  color: var(--text-secondary);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+.map-toggle.is-on {
+  color: var(--text-primary);
+  border-color: var(--border-default);
+  background: var(--bg-elevated);
 }
 
 .map-up {
@@ -750,12 +768,6 @@
   color: var(--text-secondary);
 }
 
-.ghost-go {
-  flex-shrink: 0;
-  font-weight: 700;
-  color: var(--sys);
-  opacity: 0.7;
-}
 
 /* --- Zones: soft regions that group things (behind the scenes, comes from, goes to) */
 
@@ -905,4 +917,61 @@ button.crumb:hover {
   align-items: center;
   gap: 12px;
   margin-top: 10px;
+}
+
+/* Neighbour chips: where this part's work comes from and goes next. */
+.ghost-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.ghost-dir {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.map-ghost .ghost-name {
+  -webkit-line-clamp: 1;
+  font-size: 13.5px;
+}
+
+.map-ghost .ghost-icon {
+  width: 30px;
+  height: 30px;
+  font-size: 15px;
+}
+
+/* Pointing at something fades whatever it isn't connected to. */
+.map-tile,
+.map-piece,
+.map-ghost {
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.is-faded {
+  opacity: 0.32;
+}
+
+/* The main path inside an area or part: a quieter version of the journey track. */
+.canvas-view .map-track.is-flow {
+  stroke: color-mix(in srgb, var(--text-tertiary) 14%, transparent);
+  stroke-width: 12;
+}
+
+.canvas-view .map-link.is-flow .react-flow__edge-path {
+  stroke: color-mix(in srgb, var(--text-secondary) 70%, transparent);
+  stroke-width: 2;
+}
+
+.map-words.is-flow {
+  color: var(--text-primary);
 }

@@ -81,6 +81,8 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
   const [selected, setSelected] = useState<string | null>(null)
   const [hovered, setHovered] = useState<string | null>(null)
   const [fading, setFading] = useState(false)
+  const [showAll, setShowAll] = useState<boolean>(() => readJSON('origin.mapAllLines', false))
+  useEffect(() => writeJSON('origin.mapAllLines', showAll), [showAll])
 
   useEffect(() => writeJSON(pathKey, path), [pathKey, path])
   useEffect(() => writeJSON('origin.mapLang', lang), [lang])
@@ -272,30 +274,44 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
     return ids
   }, [changes, ix])
 
+  // What you're pointing at (or have open), and everything it connects to.
+  const focus = hovered ?? selected
+  const related = useMemo(() => {
+    if (!focus) return null
+    const set = new Set([focus])
+    for (const e of scene.edges) {
+      if (e.source === focus) set.add(e.target)
+      if (e.target === focus) set.add(e.source)
+    }
+    return set
+  }, [focus, scene.edges])
+
   const live = useMemo<MapLive | null>(
-    () => (ix ? { ix, lang, agentsIn, changing, selected, onOpenAgent: openAgent } : null),
-    [ix, lang, agentsIn, changing, selected, openAgent]
+    () => (ix ? { ix, lang, agentsIn, changing, selected, related, onOpenAgent: openAgent } : null),
+    [ix, lang, agentsIn, changing, selected, related, openAgent]
   )
 
-  // Lines stay quiet until you point at something; then its lines and their
-  // words come forward. Words show by default only where they stay readable.
+  // Three tiers of lines. The main path is always drawn, with its words.
+  // Pointing at something draws all of its lines, with words, and fades the
+  // rest. "All lines" draws every connection, thin and without words.
   const edges = useMemo<Edge[]>(() => {
-    const focus = hovered ?? selected
-    const inner = scene.edges.filter((e) => (e.data as LinkData).kind === 'link').length
+    const flows = scene.edges.filter((e) => (e.data as LinkData).kind === 'flow').length
     return scene.edges.map((e) => {
       const d = e.data as LinkData
       const lit = !!focus && (e.source === focus || e.target === focus)
-      const calm = d.kind === 'journey' || (d.kind === 'link' && !!here.systemId && inner <= 6)
-      const hidden = !here.systemId && d.kind === 'link' && !lit
+      const main = d.kind === 'journey' || d.kind === 'flow'
+      // Neighbour lines stay on, faint and wordless, so the chips never float alone.
+      const hidden = !main && d.kind !== 'context' && !lit && !showAll
+      const words = !!d.text && (lit || d.kind === 'journey' || (d.kind === 'flow' && !focus && flows <= 6))
       return {
         ...e,
         animated: d.kind === 'journey',
         className: `${e.className}${lit ? ' is-lit' : ''}${focus && !lit ? ' is-dim' : ''}${hidden ? ' is-hidden' : ''}`,
-        data: { ...d, lit, showText: !!d.text && !hidden && (lit || (calm && !focus) || d.kind === 'journey') } satisfies EdgeView,
+        data: { ...d, lit, showText: words } satisfies EdgeView,
         markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color: d.kind === 'journey' ? 'var(--accent)' : lit ? 'var(--text-secondary)' : 'var(--text-tertiary)' }
       }
     })
-  }, [scene.edges, hovered, selected, here.systemId])
+  }, [scene.edges, focus, showAll])
 
   // --- Keyboard: Cmd/Ctrl+K palette. Esc is left alone (it interrupts agents).
   useEffect(() => {
@@ -403,6 +419,9 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
                 ↑ Up
               </button>
             )}
+            <button className={`map-toggle${showAll ? ' is-on' : ''}`} onClick={() => setShowAll((v) => !v)} title="Draw every connection, not just the main path">
+              All lines
+            </button>
             <LangSwitch lang={lang} onChange={setLang} />
           </div>
           {here.featureId && <ShapeKey types={pieceTypes} />}

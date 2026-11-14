@@ -16,9 +16,9 @@ export interface MapPath {
 }
 
 export const TILE = { w: 288, h: 188 }
-export const PART = { w: 272, h: 176 }
+export const PART = { w: 272, h: 186 }
 export const PIECE = { w: 244, h: 116 }
-export const GHOST = { w: 240, h: 58 }
+export const GHOST = { w: 244, h: 46 }
 
 export interface PieceKind {
   label: string
@@ -93,7 +93,12 @@ export function validPath(ix: MapIndex, path: MapPath): MapPath {
 
 // --- Scene --------------------------------------------------------------------
 
-export type LinkKind = 'journey' | 'link' | 'context'
+/**
+ * journey: the product's main path. flow: the main path inside an area or part.
+ * link: any other connection. context: to a neighbour outside this view.
+ * Journey and flow are always drawn; the rest appear when you point at something.
+ */
+export type LinkKind = 'journey' | 'flow' | 'link' | 'context'
 export interface LinkData extends Record<string, unknown> {
   kind: LinkKind
   text: string
@@ -311,9 +316,23 @@ function framed(
 ): Scene {
   const links = collapse(pairs, (from, to) => (from.startsWith('in:') || to.startsWith('out:') ? 'context' : 'link'))
   // Lay everything out together so the inside lines up with what feeds it,
-  // then move the neighbours out into their own columns.
+  // then move the neighbours out to the ends.
   const pos = layered([...inner, ...ghosts.values()], links, gap)
   for (const id of ghosts.keys()) pos.delete(id)
+
+  // The main flow: each box keeps its strongest forward line in; that line is
+  // always drawn. Everything else waits until you point at something.
+  // Prefer the nearest step before it, so the path never jumps behind a box.
+  const x = (id: string) => pos.get(id)?.x ?? 0
+  const best = new Map<string, Link>()
+  for (const l of links) {
+    if (l.kind !== 'link' || x(l.to) <= x(l.from)) continue
+    const cur = best.get(l.to)
+    const span = x(l.to) - x(l.from)
+    const curSpan = cur ? x(cur.to) - x(cur.from) : Infinity
+    if (!cur || span < curSpan - 1 || (Math.abs(span - curSpan) <= 1 && l.count > cur.count)) best.set(l.to, l)
+  }
+  for (const l of best.values()) l.kind = 'flow'
 
   const rects = inner.map((b) => ({ ...pos.get(b.id)!, w: b.w, h: b.h }))
   const minX = Math.min(...rects.map((r) => r.x))
@@ -321,7 +340,7 @@ function framed(
   const minY = Math.min(...rects.map((r) => r.y))
   const maxY = Math.max(...rects.map((r) => r.y + r.h))
 
-  // Each neighbour sits level with what it touches, so lines stay short and flat.
+  // Neighbours: small chips at the start and end of the flow, ordered like what they touch.
   const reach = (gid: string) => {
     const ys = links
       .filter((l) => l.from === gid || l.to === gid)
@@ -330,28 +349,17 @@ function framed(
       .map((id) => pos.get(id)!.y + (inner.find((b) => b.id === id)?.h ?? 0) / 2)
     return ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : (minY + maxY) / 2
   }
-  const COL_GAP = 150
-  const extra: Node[] = []
+  const COL_GAP = 120
   for (const dir of ['in', 'out'] as const) {
     const col = [...ghosts.values()].filter((g) => g.data.dir === dir).sort((a, b) => reach(a.id) - reach(b.id))
     if (!col.length) continue
-    const x = dir === 'in' ? minX - COL_GAP - GHOST.w : maxX + COL_GAP
-    // A tight stack, ordered like what it touches, centred on it.
+    const cx = dir === 'in' ? minX - COL_GAP - GHOST.w : maxX + COL_GAP
     const mid = col.reduce((n, g) => n + reach(g.id), 0) / col.length
-    const stackH = col.length * GHOST.h + (col.length - 1) * 14
-    const top = Math.max(minY - 40, Math.min(mid - stackH / 2, maxY + 40 - stackH))
-    col.forEach((g, i) => pos.set(g.id, { x, y: top + i * (GHOST.h + 14) }))
-    extra.push(
-      zone(
-        `zone-${dir}`,
-        col.map((g) => ({ ...pos.get(g.id)!, w: GHOST.w, h: GHOST.h })),
-        dir === 'in' ? 'Comes from' : 'Goes to',
-        dir === 'in' ? 'Inputs' : 'Outputs',
-        16
-      )
-    )
+    const stackH = col.length * GHOST.h + (col.length - 1) * 12
+    const top = Math.max(minY - 20, Math.min(mid - stackH / 2, maxY + 20 - stackH))
+    col.forEach((g, i) => pos.set(g.id, { x: cx, y: top + i * (GHOST.h + 12) }))
   }
-  return toScene([...inner, ...ghosts.values()], links, pos, extra)
+  return toScene([...inner, ...ghosts.values()], links, pos)
 }
 
 function areaScene(ix: MapIndex, system: System): Scene {

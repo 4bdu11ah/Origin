@@ -18,11 +18,14 @@ export interface MapLive {
   /** Ids (systems, features, pieces) whose code changed in the last few minutes. */
   changing: Set<string>
   selected: string | null
+  /** While something is pointed at: it and everything it connects to. Others fade. */
+  related: Set<string> | null
   onOpenAgent: (id: string) => void
 }
 
 export const MapLiveContext = createContext<MapLive | null>(null)
 const useLive = () => useContext(MapLiveContext)!
+const fade = (live: MapLive, id: string) => (live.related && !live.related.has(id) ? ' is-faded' : '')
 
 const SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left]
 
@@ -65,13 +68,14 @@ function Faces({ agents, onOpen }: { agents: Agent[]; onOpen: (id: string) => vo
   )
 }
 
-export const AreaNode = memo(function AreaNode({ data }: NodeProps) {
+export const AreaNode = memo(function AreaNode({ id, data }: NodeProps) {
   const { systemId, step, parts, pieces } = data as { systemId: string; step: number | null; parts: number; pieces: number }
-  const { ix, lang, agentsIn, changing, onOpenAgent } = useLive()
+  const live = useLive()
+  const { ix, lang, agentsIn, changing, onOpenAgent } = live
   const s = ix.system.get(systemId)!
   const busy = changing.has(s.id)
   return (
-    <div className={`map-tile is-area${step ? ' is-step' : ''}${busy ? ' is-changing' : ''}`} style={{ width: TILE.w, height: TILE.h, ['--sys' as string]: s.color } as CSSProperties}>
+    <div className={`map-tile is-area${step ? ' is-step' : ''}${busy ? ' is-changing' : ''}${fade(live, id)}`} style={{ width: TILE.w, height: TILE.h, ['--sys' as string]: s.color } as CSSProperties}>
       <Handles />
       <div className="tile-top">
         <span className="tile-icon">{systemIcon(s)}</span>
@@ -88,14 +92,15 @@ export const AreaNode = memo(function AreaNode({ data }: NodeProps) {
   )
 })
 
-export const PartNode = memo(function PartNode({ data }: NodeProps) {
+export const PartNode = memo(function PartNode({ id, data }: NodeProps) {
   const { featureId, pieces } = data as { featureId: string; pieces: number }
-  const { ix, lang, changing } = useLive()
+  const live = useLive()
+  const { ix, lang, changing } = live
   const f = ix.feature.get(featureId)!
   const s = ix.systemOf.get(featureId)!
   const busy = changing.has(f.id)
   return (
-    <div className={`map-tile is-part${busy ? ' is-changing' : ''}`} style={{ width: PART.w, height: PART.h, ['--sys' as string]: s.color } as CSSProperties}>
+    <div className={`map-tile is-part${busy ? ' is-changing' : ''}${fade(live, id)}`} style={{ width: PART.w, height: PART.h, ['--sys' as string]: s.color } as CSSProperties}>
       <Handles />
       <div className="tile-top">
         <span className="tile-icon">{featureIcon(f)}</span>
@@ -110,15 +115,16 @@ export const PartNode = memo(function PartNode({ data }: NodeProps) {
   )
 })
 
-export const PieceNode = memo(function PieceNode({ data }: NodeProps) {
+export const PieceNode = memo(function PieceNode({ id, data }: NodeProps) {
   const { pieceId } = data as { pieceId: string }
-  const { ix, lang, changing, selected } = useLive()
+  const live = useLive()
+  const { ix, lang, changing, selected } = live
   const n = ix.piece.get(pieceId)!
   const s = ix.systemOf.get(pieceId)!
   const kind = PIECE_KIND[n.type] ?? PIECE_KIND.function
   return (
     <div
-      className={`map-piece shape-${kind.shape}${selected === n.id ? ' is-selected' : ''}${changing.has(n.id) ? ' is-changing' : ''}`}
+      className={`map-piece shape-${kind.shape}${selected === n.id ? ' is-selected' : ''}${changing.has(n.id) ? ' is-changing' : ''}${fade(live, id)}`}
       style={{ width: PIECE.w, height: PIECE.h, ['--sys' as string]: s.color } as CSSProperties}
     >
       <Handles />
@@ -138,17 +144,20 @@ export const PieceNode = memo(function PieceNode({ data }: NodeProps) {
   )
 })
 
-export const GhostNode = memo(function GhostNode({ data }: NodeProps) {
+export const GhostNode = memo(function GhostNode({ id, data }: NodeProps) {
   const { dir, systemId, featureId } = data as { dir: 'in' | 'out'; systemId: string; featureId?: string }
-  const { ix, lang } = useLive()
+  const live = useLive()
+  const { ix, lang } = live
   const s = ix.system.get(systemId)!
   const f = featureId ? ix.feature.get(featureId) : undefined
   return (
-    <div className={`map-ghost dir-${dir}`} style={{ width: GHOST.w, height: GHOST.h, ['--sys' as string]: s.color } as CSSProperties} title={`Go to ${titleOf(f ?? s, lang)}`}>
+    <div className={`map-ghost dir-${dir}${fade(live, id)}`} style={{ width: GHOST.w, height: GHOST.h, ['--sys' as string]: s.color } as CSSProperties} title={`Go to ${titleOf(f ?? s, lang)}`}>
       <Handles />
       <span className="ghost-icon">{f ? featureIcon(f) : systemIcon(s)}</span>
-      <span className="ghost-name">{titleOf(f ?? s, lang)}</span>
-      <span className="ghost-go">{dir === 'in' ? '←' : '→'}</span>
+      <span className="ghost-text">
+        <span className="ghost-dir">{dir === 'in' ? 'From' : 'Then to'}</span>
+        <span className="ghost-name">{titleOf(f ?? s, lang)}</span>
+      </span>
     </div>
   )
 })
@@ -177,7 +186,7 @@ export const MapEdge = memo(function MapEdge(props: EdgeProps) {
   const [path, lx, ly] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, curvature: 0.35 })
   return (
     <>
-      {d.kind === 'journey' && <path d={path} className="map-track" />}
+      {(d.kind === 'journey' || d.kind === 'flow') && <path d={path} className={`map-track is-${d.kind}`} />}
       <BaseEdge id={id} path={path} markerEnd={markerEnd} />
       {d.showText && (
         <EdgeLabelRenderer>
