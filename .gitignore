@@ -6,6 +6,8 @@ release/
 *.log
 .origin/
 
+*.tsbuildinfo
+
 # Local-only files
 private/
 CLAUDE.md
