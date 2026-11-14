@@ -15,7 +15,8 @@ import { getLayoutedElements } from '../SpatialMap/layout'
 import { SystemNode } from '../SpatialMap/nodes/SystemNode'
 import { DetailPanel } from '../SpatialMap/DetailPanel'
 import { AgentNode, AGENT_H, AGENT_W, FileChangesContext, STATUS_LABEL, type FileChange } from './AgentNode'
-import { AgentSpace } from './AgentSpace'
+import { AgentSpace, setAgentTab } from './AgentSpace'
+import { ActivityContext, sampleActivity, type AgentActivity } from './agentActivity'
 import { agentStore, statusOf, useAgents, type Agent, type AgentKind } from './agentStore'
 import { CommandPalette, type PaletteItem } from './CommandPalette'
 import './Canvas.css'
@@ -89,6 +90,7 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
   // --- Actions ---------------------------------------------------------------
   const createAgent = useCallback((kind: AgentKind, system?: System) => {
     const id = agentStore.create(kind, system ? { systemId: system.id, systemLabel: system.label, prompt: systemPrompt(system) } : {})
+    setAgentTab(id, 'terminal')
     pendingFocus.current = id
   }, [])
 
@@ -252,12 +254,21 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
 
   const insideAgent = insideId ? agents.find((a) => a.id === insideId) : undefined
 
+  // Preview: sample activity per agent until hooks and the board feed real data.
+  const activities = useMemo(() => {
+    const ctx = { projectPath, systems: systems.map((s) => ({ id: s.id, label: s.label, color: s.color })), agents }
+    return new Map<string, AgentActivity>(agents.map((a) => [a.id, sampleActivity(a, ctx)]))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agents.map((a) => `${a.id}:${a.name}:${a.systemId}`).join(','), systems, projectPath])
+
   return (
     <FileChangesContext.Provider value={changes}>
+    <ActivityContext.Provider value={activities}>
     <div
       className="canvas-view"
       onDoubleClick={(e) => {
-        if ((e.target as HTMLElement).classList.contains('react-flow__pane')) overview()
+        const target = e.target as HTMLElement
+        if (target.classList.contains('react-flow__pane') && !target.closest('.agent-space')) overview()
       }}
     >
       <ReactFlow
@@ -287,10 +298,13 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
         </div>
       )}
 
-      {insideAgent && <AgentSpace key={insideAgent.id} agent={insideAgent} onBack={overview} />}
+      {insideAgent && activities.get(insideAgent.id) && (
+        <AgentSpace key={insideAgent.id} agent={insideAgent} activity={activities.get(insideAgent.id)!} onBack={overview} onOpenAgent={openAgent} />
+      )}
       {paletteOpen && <CommandPalette items={paletteItems} onClose={() => setPaletteOpen(false)} />}
       {detail && <DetailPanel item={detail} onClose={() => setDetail(null)} />}
     </div>
+    </ActivityContext.Provider>
     </FileChangesContext.Provider>
   )
 }

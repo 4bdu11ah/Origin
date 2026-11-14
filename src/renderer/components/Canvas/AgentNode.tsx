@@ -1,6 +1,7 @@
 import { createContext, memo, useContext } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { statusOf, useAgents, type Agent, type AgentStatus } from './agentStore'
+import { ActivityContext } from './agentActivity'
 
 // Agents on the overview are cards the size of system cards. Their terminal
 // and files live inside the agent (AgentSpace), not on the canvas.
@@ -36,12 +37,13 @@ type AgentNodeData = {
 export const AgentNode = memo(function AgentNode({ data }: NodeProps) {
   const { agentId, onOpen, onRemove } = data as unknown as AgentNodeData
   const { agents, focusedId } = useAgents()
-  const changes = useContext(FileChangesContext)
+  const activity = useContext(ActivityContext).get(agentId)
   const agent = agents.find((a) => a.id === agentId)
   if (!agent) return null
 
   const status = statusOf(agent)
-  const fileCount = changesFor(agent, changes).length
+  const ticket = activity?.tickets[0]
+  const overlap = activity?.peers.find((p) => p.relation === 'overlaps')
 
   return (
     <div
@@ -72,7 +74,8 @@ export const AgentNode = memo(function AgentNode({ data }: NodeProps) {
         </p>
         <div className="agent-node-meta">
           <span className={`agent-node-status text-${status}`}>{STATUS_LABEL[status]}</span>
-          <span>{fileCount === 1 ? '1 file changed' : `${fileCount} files changed`}</span>
+          {overlap && <span className="agent-node-overlap" title={`${overlap.name}: ${overlap.detail}`}>⚠ Overlap</span>}
+          {ticket && <span className="agent-node-ticket" title={ticket.title}>{ticket.key}</span>}
         </div>
       </div>
     </div>

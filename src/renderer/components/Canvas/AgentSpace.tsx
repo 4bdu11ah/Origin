@@ -1,11 +1,24 @@
 import { useContext, useEffect, useMemo, useState } from 'react'
 import { LiveTerminal } from './LiveTerminal'
 import { changesFor, FileChangesContext, STATUS_LABEL } from './AgentNode'
+import { AgentMap } from './AgentMap'
 import { agentStore, statusOf, type Agent } from './agentStore'
+import type { ActivityStep, AgentActivity } from './agentActivity'
+
+export type SpaceTab = 'steps' | 'terminal' | 'files'
+
+// The side tab each agent was last on. New agents open on the terminal (you
+// just started them); everything else opens on the map and its steps.
+const tabByAgent = new Map<string, SpaceTab>()
+export function setAgentTab(id: string, tab: SpaceTab): void {
+  tabByAgent.set(id, tab)
+}
 
 interface AgentSpaceProps {
   agent: Agent
+  activity: AgentActivity
   onBack: () => void
+  onOpenAgent: (id: string) => void
 }
 
 function ago(at: number): string {
@@ -15,10 +28,25 @@ function ago(at: number): string {
   return `${Math.round(s / 3600)}h ago`
 }
 
-/** Inside an agent: its live terminal, the files changed since it started, and a viewer. */
-export function AgentSpace({ agent, onBack }: AgentSpaceProps) {
+const STEP_ICON: Record<ActivityStep['kind'], string> = {
+  read: '◎',
+  edit: '✎',
+  run: '▶',
+  found: '✦',
+  ask: '?',
+  pass: '✓',
+  fail: '✕'
+}
+
+/** Inside an agent: a map of what it is doing, its steps, and its terminal and files one click away. */
+export function AgentSpace({ agent, activity, onBack, onOpenAgent }: AgentSpaceProps) {
   const changes = changesFor(agent, useContext(FileChangesContext))
   const [selected, setSelected] = useState<string | null>(null)
+  const [tab, setTabState] = useState<SpaceTab>(() => tabByAgent.get(agent.id) ?? 'steps')
+  const setTab = (t: SpaceTab) => {
+    tabByAgent.set(agent.id, t)
+    setTabState(t)
+  }
   const status = statusOf(agent)
 
   return (
@@ -45,39 +73,82 @@ export function AgentSpace({ agent, onBack }: AgentSpaceProps) {
       </div>
 
       <div className="agent-space-body">
-        <div className="agent-space-terminal">
-          <LiveTerminal id={agent.id} focused />
+        <div className="agent-space-map">
+          <AgentMap agent={agent} activity={activity} onOpenAgent={onOpenAgent} />
         </div>
 
-        <aside className="agent-space-side">
-          <div className="files-panel">
-            <h3 className="files-title">
-              Files changed <span className="files-count">{changes.length}</span>
-            </h3>
-            <p className="files-note">Since this agent started, anywhere in the project.</p>
-            {changes.length === 0 ? (
-              <p className="files-empty">No files changed yet.</p>
-            ) : (
-              <ul className="files-list">
-                {changes.map((c) => (
-                  <li key={c.path}>
-                    <button
-                      className={`files-item${selected === c.path ? ' is-active' : ''}${c.deleted ? ' is-deleted' : ''}`}
-                      onClick={() => setSelected(c.path)}
-                      title={c.path}
-                    >
-                      <span className="files-name">{c.path.split('/').pop()}</span>
-                      <span className="files-dir">{c.path.includes('/') ? c.path.slice(0, c.path.lastIndexOf('/')) : ''}</span>
-                      <span className="files-when">{c.deleted ? 'deleted' : ago(c.at)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+        <aside className={`agent-space-side side-${tab}`}>
+          <div className="side-tabs" role="tablist">
+            <button role="tab" aria-selected={tab === 'steps'} className={tab === 'steps' ? 'is-active' : ''} onClick={() => setTab('steps')}>
+              Steps
+            </button>
+            <button role="tab" aria-selected={tab === 'terminal'} className={tab === 'terminal' ? 'is-active' : ''} onClick={() => setTab('terminal')}>
+              Terminal
+            </button>
+            <button role="tab" aria-selected={tab === 'files'} className={tab === 'files' ? 'is-active' : ''} onClick={() => setTab('files')}>
+              Files <span className="files-count">{changes.length}</span>
+            </button>
           </div>
-          {selected && <FileViewer path={selected} onClose={() => setSelected(null)} />}
+
+          {tab === 'steps' && <Steps activity={activity} onReply={() => setTab('terminal')} />}
+
+          {tab === 'terminal' && (
+            <div className="agent-space-terminal">
+              <LiveTerminal id={agent.id} focused />
+            </div>
+          )}
+
+          {tab === 'files' && (
+            <>
+              <div className="files-panel">
+                <p className="files-note">Changed since this agent started, anywhere in the project.</p>
+                {changes.length === 0 ? (
+                  <p className="files-empty">No files changed yet.</p>
+                ) : (
+                  <ul className="files-list">
+                    {changes.map((c) => (
+                      <li key={c.path}>
+                        <button
+                          className={`files-item${selected === c.path ? ' is-active' : ''}${c.deleted ? ' is-deleted' : ''}`}
+                          onClick={() => setSelected(c.path)}
+                          title={c.path}
+                        >
+                          <span className="files-name">{c.path.split('/').pop()}</span>
+                          <span className="files-dir">{c.path.includes('/') ? c.path.slice(0, c.path.lastIndexOf('/')) : ''}</span>
+                          <span className="files-when">{c.deleted ? 'deleted' : ago(c.at)}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              {selected && <FileViewer path={selected} onClose={() => setSelected(null)} />}
+            </>
+          )}
         </aside>
       </div>
+    </div>
+  )
+}
+
+function Steps({ activity, onReply }: { activity: AgentActivity; onReply: () => void }) {
+  const last = activity.steps[activity.steps.length - 1]
+  return (
+    <div className="steps">
+      <ol className="steps-list">
+        {activity.steps.map((s, i) => (
+          <li key={i} className={`step step-${s.kind}${i === activity.steps.length - 1 ? ' is-now' : ''}`}>
+            <span className="step-icon" aria-hidden>{STEP_ICON[s.kind]}</span>
+            <span className="step-text">{s.text}</span>
+            <span className="step-when">{s.when === 'now' ? 'now' : `${s.when} ago`}</span>
+          </li>
+        ))}
+      </ol>
+      {last?.kind === 'ask' && (
+        <button className="strip-btn steps-reply" onClick={onReply}>
+          Reply in terminal
+        </button>
+      )}
     </div>
   )
 }
