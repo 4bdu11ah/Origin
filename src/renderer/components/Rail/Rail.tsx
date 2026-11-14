@@ -35,6 +35,12 @@ const I = {
       <path d="M9.2 16l-1.7 3.5M14.8 16l1.7 3.5M12 17v3" />
     </>
   ),
+  meetings: (
+    <>
+      <rect x="3.5" y="6" width="12" height="12" rx="2.5" />
+      <path d="M15.5 10.5l5-3v9l-5-3" />
+    </>
+  ),
   team: (
     <>
       <circle cx="9" cy="8.5" r="3" />
@@ -71,12 +77,13 @@ const ITEMS: { id: Screen; label: string }[] = [
   { id: 'board', label: 'Board' },
   { id: 'inbox', label: 'Inbox' },
   { id: 'releases', label: 'Releases' },
+  { id: 'meetings', label: 'Meet' },
   { id: 'team', label: 'Team' },
   { id: 'connections', label: 'Connect' }
 ]
 
 export function Rail() {
-  const { screen, setScreen, inbox, connections } = useWorkspace()
+  const { screen, setScreen, inbox, connections, meetings } = useWorkspace()
   const { agents } = useAgents()
 
   const badges: Partial<Record<Screen, { n: number; tone: 'warn' | 'info' }>> = {}
@@ -87,6 +94,8 @@ export function Rail() {
   if (inbox.length) badges.inbox = { n: inbox.length, tone: 'info' }
   const broken = connections.filter((c) => c.status !== 'ok').length
   if (broken) badges.connections = { n: broken, tone: 'warn' }
+  const upcoming = meetings.filter((m) => m.status === 'upcoming').length
+  if (upcoming) badges.meetings = { n: upcoming, tone: 'info' }
 
   const item = (id: Screen, label: string) => {
     const badge = badges[id]

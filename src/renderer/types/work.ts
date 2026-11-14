@@ -95,11 +95,55 @@ export type ConnectionStatus = 'ok' | 'expiring' | 'expired' | 'missing'
 export interface Connection {
   id: string
   name: string
-  kind: 'login' | 'mcp' | 'key'
+  /** runner: the agent CLI that does the work (Claude Code or Codex). code: where the code lives and deploys. */
+  kind: 'runner' | 'code' | 'mcp' | 'key'
   status: ConnectionStatus
   /** Short state, e.g. "Logged in as …" or "Expired 2 days ago". */
   detail: string
   usedBy: string[]
+  /** Runners: which subscription it uses. */
+  plan?: string
+  /** How to connect it, step by step. */
+  steps?: { text: string; command?: string }[]
+}
+
+/** Something that can be added from the "+" catalog. */
+export interface CatalogItem {
+  name: string
+  kind: Connection['kind']
+  /** What it's for, a few words. */
+  blurb: string
+}
+
+export type MeetingKind = 'tickets' | 'sprint' | 'release' | 'standup'
+
+export interface MeetingTemplate {
+  kind: MeetingKind
+  title: string
+  /** A few words on what comes out of it. */
+  blurb: string
+  icon: string
+}
+
+export interface Meeting {
+  id: string
+  kind: MeetingKind
+  title: string
+  when: string
+  /** Nicknames of employees attending (the chief of staff always joins). */
+  attendees: string[]
+  status: 'upcoming' | 'done'
+  length?: string
+  outcomes?: { tickets: number; decisions: string[] }
+}
+
+/** One line of a meeting, and what it adds to the outcomes. */
+export interface MeetingLine {
+  who: string
+  text: string
+  sprint?: string
+  draft?: { title: string; system?: string; owner?: string }
+  decision?: string
 }
 
 export type ChiefCard = { type: 'ticket'; key: string } | { type: 'person'; name: string } | { type: 'release'; id: string }

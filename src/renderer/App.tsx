@@ -12,6 +12,7 @@ import { ReleasesScreen } from './components/Screens/ReleasesScreen'
 import { TeamScreen } from './components/Screens/TeamScreen'
 import { ConnectionsScreen } from './components/Screens/ConnectionsScreen'
 import { ChiefScreen } from './components/Screens/ChiefScreen'
+import { MeetingsScreen } from './components/Screens/MeetingsScreen'
 import { useMapData } from './hooks/useMapData'
 import { useProject } from './hooks/useProject'
 import { useSettings } from './contexts/SettingsContext'
@@ -32,7 +33,7 @@ const SCREEN_KEY = 'origin.screen'
 function readScreen(): Screen {
   try {
     const s = localStorage.getItem(SCREEN_KEY)
-    return (['canvas', 'board', 'inbox', 'releases', 'team', 'connections', 'chief'] as const).find((x) => x === s) ?? 'canvas'
+    return (['canvas', 'board', 'inbox', 'releases', 'meetings', 'team', 'connections', 'chief'] as const).find((x) => x === s) ?? 'canvas'
   } catch {
     return 'canvas'
   }
@@ -106,6 +107,7 @@ function Workspace({ project }: { project: ProjectInfo }) {
             {screen === 'board' && <BoardScreen />}
             {screen === 'inbox' && <InboxScreen />}
             {screen === 'releases' && <ReleasesScreen />}
+            {screen === 'meetings' && <MeetingsScreen />}
             {screen === 'team' && <TeamScreen />}
             {screen === 'connections' && <ConnectionsScreen />}
             {screen === 'chief' && <ChiefScreen />}

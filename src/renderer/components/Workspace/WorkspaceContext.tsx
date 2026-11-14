@@ -1,15 +1,15 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { sampleWorkspace, type SampleWorkspace } from '../../sample/workspace'
-import type { InboxItem, Ticket } from '../../types/work'
+import type { InboxItem, Meeting, Ticket } from '../../types/work'
 
 // Shared state for one project window: which screen is showing, and the
 // project's record (tickets, inbox, releases, team...). Preview: the record is
 // sample data held in memory; actions like accepting an inbox item change it
 // so the screens feel connected, but nothing is saved yet.
 
-export type Screen = 'canvas' | 'board' | 'inbox' | 'releases' | 'team' | 'connections' | 'chief'
+export type Screen = 'canvas' | 'board' | 'inbox' | 'releases' | 'meetings' | 'team' | 'connections' | 'chief'
 
-interface WorkspaceValue extends Omit<SampleWorkspace, 'tickets' | 'inbox'> {
+interface WorkspaceValue extends Omit<SampleWorkspace, 'tickets' | 'inbox' | 'meetings'> {
   projectPath: string
   systems: { id: string; label: string; color: string }[]
   screen: Screen
@@ -21,6 +21,10 @@ interface WorkspaceValue extends Omit<SampleWorkspace, 'tickets' | 'inbox'> {
   openTicket: (key: string | null) => void
   acceptInbox: (id: string) => void
   dismissInbox: (id: string) => void
+  /** Adds a ticket to Todo and returns its key. */
+  addTicket: (t: Pick<Ticket, 'title' | 'summary'> & Partial<Ticket>) => string
+  meetings: Meeting[]
+  saveMeeting: (m: Meeting) => void
 }
 
 const WorkspaceContext = createContext<WorkspaceValue | null>(null)
@@ -42,6 +46,22 @@ export function WorkspaceProvider({
   const [tickets, setTickets] = useState<Ticket[]>(sample.tickets)
   const [inbox, setInbox] = useState<InboxItem[]>(sample.inbox)
   const [openTicketKey, setOpenTicketKey] = useState<string | null>(null)
+  const [meetings, setMeetings] = useState<Meeting[]>(sample.meetings)
+  const saveMeeting = useCallback((m: Meeting) => setMeetings((list) => [m, ...list.filter((x) => x.id !== m.id)]), [])
+
+  const nextKey = (list: Ticket[]) => `${sample.prefix}-${Math.max(0, ...list.map((t) => Number(t.key.split('-').pop()) || 0)) + 1}`
+  const addTicket = useCallback(
+    (t: Pick<Ticket, 'title' | 'summary'> & Partial<Ticket>): string => {
+      let key = ''
+      setTickets((list) => {
+        key = nextKey(list)
+        return [...list, { key, status: 'todo', assignee: null, system: null, doneWhen: [], history: [], updated: 'just now', ...t }]
+      })
+      return key
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sample.prefix]
+  )
 
   const openTicket = useCallback(
     (key: string | null) => {
@@ -93,7 +113,10 @@ export function WorkspaceProvider({
     openTicketKey,
     openTicket,
     acceptInbox,
-    dismissInbox
+    dismissInbox,
+    addTicket,
+    meetings,
+    saveMeeting
   }
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>
 }

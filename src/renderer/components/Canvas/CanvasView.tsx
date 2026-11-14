@@ -55,6 +55,7 @@ const SCREEN_ITEMS: { id: Screen; label: string }[] = [
   { id: 'board', label: 'Board' },
   { id: 'inbox', label: 'Inbox' },
   { id: 'releases', label: 'Releases' },
+  { id: 'meetings', label: 'Meetings' },
   { id: 'team', label: 'Team' },
   { id: 'connections', label: 'Connections' },
   { id: 'chief', label: 'Chief of staff' }

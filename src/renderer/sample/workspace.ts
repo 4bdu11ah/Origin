@@ -5,7 +5,7 @@
 
 import { CONTRACTOR, ROSTER, type Employee } from '../components/Canvas/personas'
 import { ticketPrefix } from '../components/Canvas/agentActivity'
-import type { ChiefMessage, Connection, InboxItem, LibraryEmployee, Person, Release, TeamMember, Ticket } from '../types/work'
+import type { CatalogItem, ChiefMessage, Connection, InboxItem, LibraryEmployee, Meeting, MeetingLine, MeetingTemplate, Person, Release, TeamMember, Ticket } from '../types/work'
 
 const [PENNY, OTTO, IVY, BRUNO, BEA] = ROSTER
 
@@ -30,7 +30,12 @@ export interface SampleWorkspace {
   team: TeamMember[]
   library: LibraryEmployee[]
   connections: Connection[]
+  catalog: CatalogItem[]
   chief: ChiefMessage[]
+  templates: MeetingTemplate[]
+  meetings: Meeting[]
+  /** A sprint-planning meeting, played back line by line in the preview. */
+  meetingScript: MeetingLine[]
 }
 
 export function sampleWorkspace(projectPath: string, mapSystems: { label: string; color: string }[] = []): SampleWorkspace {
@@ -341,16 +346,55 @@ export function sampleWorkspace(projectPath: string, mapSystems: { label: string
   ]
 
   const connections: Connection[] = [
-    { id: 'claude', name: 'Claude Code', kind: 'login', status: 'ok', detail: 'Logged in', usedBy: ['Everyone'] },
-    { id: 'codex', name: 'Codex', kind: 'login', status: 'missing', detail: 'Not installed', usedBy: [] },
-    { id: 'gh', name: 'GitHub', kind: 'login', status: 'ok', detail: 'Logged in', usedBy: ['Penny', 'Ivy', 'Bruno'] },
-    { id: 'vercel', name: 'Vercel', kind: 'login', status: 'expired', detail: 'Logged out 2 days ago', usedBy: ['Otto'] },
+    {
+      id: 'claude',
+      name: 'Claude Code',
+      kind: 'runner',
+      status: 'ok',
+      detail: 'Logged in',
+      plan: 'Uses your Claude Pro or Max plan',
+      usedBy: ['Everyone'],
+      steps: [
+        { text: 'Install Claude Code', command: 'npm install -g @anthropic-ai/claude-code' },
+        { text: 'Log in with your Claude account', command: 'claude /login' },
+        { text: 'Origin checks it works' }
+      ]
+    },
+    {
+      id: 'codex',
+      name: 'Codex',
+      kind: 'runner',
+      status: 'missing',
+      detail: 'Not connected',
+      plan: 'Uses your ChatGPT Plus or Pro plan',
+      usedBy: [],
+      steps: [
+        { text: 'Install Codex', command: 'npm install -g @openai/codex' },
+        { text: 'Log in with your ChatGPT account', command: 'codex login' },
+        { text: 'Origin checks it works' }
+      ]
+    },
+    { id: 'gh', name: 'GitHub', kind: 'code', status: 'ok', detail: 'Logged in · 3 repos', usedBy: ['Penny', 'Ivy', 'Bruno'] },
+    { id: 'vercel', name: 'Vercel', kind: 'code', status: 'expired', detail: 'Logged out 2 days ago', usedBy: ['Otto'] },
     { id: 'figma', name: 'Figma', kind: 'mcp', status: 'ok', detail: 'Connected', usedBy: ['Otto'] },
     { id: 'supabase', name: 'Supabase', kind: 'mcp', status: 'ok', detail: 'Connected', usedBy: ['Ivy'] },
     { id: 'sentry', name: 'Sentry', kind: 'mcp', status: 'expiring', detail: 'Token expires in 3 days', usedBy: ['Bruno'] },
     { id: 'stripe', name: 'Stripe', kind: 'key', status: 'ok', detail: 'Test key · sk_test_…4f2a', usedBy: ['Penny'] },
     { id: 'meta', name: 'Meta Ads', kind: 'key', status: 'ok', detail: 'Token · …9c1e', usedBy: ['Bea'] },
     { id: 'resend', name: 'Resend', kind: 'key', status: 'missing', detail: 'No key yet', usedBy: ['Ivy', 'Bea'] }
+  ]
+
+  const catalog: CatalogItem[] = [
+    { name: 'Linear', kind: 'mcp', blurb: 'Sync tickets both ways' },
+    { name: 'Slack', kind: 'mcp', blurb: 'Post updates, read threads' },
+    { name: 'Notion', kind: 'mcp', blurb: 'Read docs and specs' },
+    { name: 'Postgres', kind: 'mcp', blurb: 'Query your database' },
+    { name: 'Playwright', kind: 'mcp', blurb: 'Click through your app' },
+    { name: 'Netlify', kind: 'code', blurb: 'Deploy sites' },
+    { name: 'GitLab', kind: 'code', blurb: 'Code and merge requests' },
+    { name: 'OpenAI API', kind: 'key', blurb: 'Images, embeddings' },
+    { name: 'Google Analytics', kind: 'key', blurb: 'Traffic and conversions' },
+    { name: 'Custom tool', kind: 'mcp', blurb: 'Any MCP server by URL' }
   ]
 
   const chief: ChiefMessage[] = [
@@ -375,5 +419,48 @@ export function sampleWorkspace(projectPath: string, mapSystems: { label: string
     }
   ]
 
-  return { prefix: P, tickets, inbox, releases, team, library, connections, chief }
+  const templates: MeetingTemplate[] = [
+    { kind: 'tickets', title: 'Plan tickets', blurb: 'Turn ideas into tickets', icon: '🎯' },
+    { kind: 'sprint', title: 'Sprint planning', blurb: 'Pick what ships this week', icon: '🗓️' },
+    { kind: 'release', title: 'Release review', blurb: 'What shipped, what’s next', icon: '🚀' },
+    { kind: 'standup', title: 'Standup', blurb: 'A quick round from everyone', icon: '☕' }
+  ]
+
+  const meetings: Meeting[] = [
+    { id: 'm1', kind: 'sprint', title: 'Sprint planning', when: 'Mon 10:00', attendees: ['Penny', 'Ivy', 'Otto', 'Bea'], status: 'upcoming' },
+    { id: 'm2', kind: 'standup', title: 'Standup', when: 'Tomorrow 9:30', attendees: ['Penny', 'Ivy', 'Otto', 'Bruno', 'Bea'], status: 'upcoming' },
+    {
+      id: 'm3',
+      kind: 'release',
+      title: 'Release review',
+      when: 'Tue',
+      attendees: ['Otto', 'Bruno', 'Bea'],
+      status: 'done',
+      length: '14 min',
+      outcomes: { tickets: 3, decisions: ['Ship the pricing page today', 'Roll back the image loader'] }
+    },
+    {
+      id: 'm4',
+      kind: 'tickets',
+      title: 'Plan tickets',
+      when: 'Last Thu',
+      attendees: ['Ivy', 'Bea'],
+      status: 'done',
+      length: '9 min',
+      outcomes: { tickets: 4, decisions: ['Password reset before growth push'] }
+    }
+  ]
+
+  const meetingScript: MeetingLine[] = [
+    { who: 'Leo', text: 'Last week we shipped instant search and PDF receipts.' },
+    { who: 'You', text: 'This week: checkout fixed and password reset live.' },
+    { who: 'Penny', text: 'Checkout is close. One more day for discount rounding.', sprint: k(12) },
+    { who: 'Ivy', text: 'Reset is done except email. Pick a provider and it ships.', sprint: k(19) },
+    { who: 'You', text: 'Use Resend. And lock login after five wrong tries.', decision: 'Email goes through Resend', sprint: k(35) },
+    { who: 'Bea', text: 'Can we remind people who abandon carts? A third drop at payment.', draft: { title: 'Abandoned cart reminder email', system: S4.label, owner: 'Bea' } },
+    { who: 'Leo', text: 'Otto is free after the hero. He could take dark mode.', sprint: k(33) },
+    { who: 'You', text: 'Do it. And add a weekly summary of this to the chief chat.', decision: 'Otto takes dark mode', draft: { title: 'Weekly sprint summary in chief chat', owner: 'Leo' } }
+  ]
+
+  return { prefix: P, tickets, inbox, releases, team, library, connections, catalog, chief, templates, meetings, meetingScript }
 }
