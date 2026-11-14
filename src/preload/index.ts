@@ -62,8 +62,6 @@ contextBridge.exposeInMainWorld('api', {
 
     buffer: (id: string) => ipcRenderer.invoke('terminal:buffer', id),
 
-    focus: (id: string) => ipcRenderer.send('terminal:focus', id),
-
     onData: (callback: (id: string, data: string, offset: number) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, id: string, data: string, offset: number) =>
         callback(id, data, offset)
@@ -80,8 +78,6 @@ contextBridge.exposeInMainWorld('api', {
     resize: (id: string, cols: number, rows: number) =>
       ipcRenderer.send('terminal:resize', id, cols, rows),
 
-    kill: (id: string) => ipcRenderer.send('terminal:kill', id),
-
-    writeToActive: (data: string) => ipcRenderer.send('terminal:write-active', data)
+    kill: (id: string) => ipcRenderer.send('terminal:kill', id)
   }
 })

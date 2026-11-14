@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { useSettings } from '../../contexts/SettingsContext'
-import { DARK_THEME, LIGHT_THEME } from '../Terminal/TerminalPane'
+import { DARK_THEME, LIGHT_THEME } from './terminalThemes'
 import { agentStore } from './agentStore'
 import '@xterm/xterm/css/xterm.css'
 

@@ -4,7 +4,8 @@ import { STATUS_LABEL } from './AgentNode'
 import { statusOf, type Agent, type AgentStatus } from './agentStore'
 import { Avatar } from './Avatar'
 import { displayName, personaFor, roleOf } from './personas'
-import { TICKET_STATUS_LABEL, type ActivityPeer, type ActivitySystem, type ActivityTicket, type AgentActivity, type TicketStatus } from './agentActivity'
+import { TICKET_STATUS_LABEL, type ActivityPeer, type ActivitySystem, type ActivityTicket, type AgentActivity } from './agentActivity'
+import { StatusIcon } from '../shared/StatusIcon'
 
 // A picture of what one agent is doing. Each kind of thing has its own shape,
 // so it reads at a glance: agents are faces (employee mascots or the
@@ -32,21 +33,6 @@ function Handles() {
         <Handle key={`t-${p}`} id={`t-${p}`} type="target" position={p} className="amap-handle" isConnectable={false} />
       ))}
     </>
-  )
-}
-
-/** Ticket status ring, in the spirit of Linear: empty, half, three-quarters, done. */
-function StatusIcon({ status }: { status: TicketStatus }) {
-  const fill = { todo: 0, 'in-progress': 0.5, 'in-review': 0.75, done: 1 }[status]
-  const c = 2 * Math.PI * 2.5
-  return (
-    <svg className={`amap-status-icon icon-${status}`} width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-      <circle cx="7" cy="7" r="6" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      {fill > 0 && fill < 1 && (
-        <circle cx="7" cy="7" r="2.5" fill="none" stroke="currentColor" strokeWidth="5" strokeDasharray={`${c * fill} ${c}`} transform="rotate(-90 7 7)" />
-      )}
-      {fill === 1 && <path d="M4.2 7.2l1.9 1.9 3.7-3.9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />}
-    </svg>
   )
 }
 

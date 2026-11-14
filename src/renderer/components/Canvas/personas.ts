@@ -7,7 +7,9 @@ export type Persona =
   | { type: 'employee'; nickname: string; role: string; icon: string; color: string }
   | { type: 'contractor' }
 
-const ROSTER: Extract<Persona, { type: 'employee' }>[] = [
+export type Employee = Extract<Persona, { type: 'employee' }>
+
+export const ROSTER: Employee[] = [
   { type: 'employee', nickname: 'Penny', role: 'Payments engineer', icon: '🦊', color: '#f0a05a' },
   { type: 'employee', nickname: 'Otto', role: 'Design lead', icon: '🦉', color: '#8fb0f5' },
   { type: 'employee', nickname: 'Ivy', role: 'Backend engineer', icon: '🐙', color: '#b490ee' },

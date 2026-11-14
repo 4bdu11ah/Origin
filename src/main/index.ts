@@ -29,7 +29,6 @@ interface ProjectWindow {
   ptys: Set<string>
   /** Source files changed while the project is open, for "files changed since an agent started". */
   fileActivity: Map<string, { at: number; deleted: boolean }>
-  latestPty: string | null
 }
 
 /** Windows by webContents id, so IPC from a renderer finds its window. */
@@ -137,7 +136,6 @@ function spawnPty(pw: ProjectWindow, id: string, launch?: AgentLaunch): void {
   Object.assign(env, agentHooks?.env(id) ?? {})
 
   pw.ptys.add(id)
-  pw.latestPty = id
   ptyOwner.set(id, pw)
 
   ptyHost.send({ type: 'spawn', id, shell: shellPath, args: ['--login', '-i'], cols: 80, rows: 24, cwd: pw.project?.path ?? os.homedir(), env })
@@ -167,7 +165,6 @@ function teardown(pw: ProjectWindow): void {
   pw.watcher?.stop()
   pw.watcher = null
   pw.fileActivity.clear()
-  pw.latestPty = null
 }
 
 /** Remembers which projects are open, so they come back after a quit or a crash. */
@@ -325,7 +322,7 @@ function createWindow(): ProjectWindow {
     }
   })
 
-  const pw: ProjectWindow = { win, project: null, watcher: null, ptys: new Set(), fileActivity: new Map(), latestPty: null }
+  const pw: ProjectWindow = { win, project: null, watcher: null, ptys: new Set(), fileActivity: new Map() }
   const contentsId = win.webContents.id
   windows.set(contentsId, pw)
 
@@ -403,14 +400,6 @@ function setupIPC(): void {
     const pw = fromEvent(e)
     const buf = owns(pw, id) ? ptyOutput.get(id) : undefined
     return { data: buf?.data ?? '', end: buf?.total ?? 0, alive: owns(pw, id) }
-  })
-  ipcMain.on('terminal:focus', (e, id: string) => {
-    const pw = fromEvent(e)
-    if (owns(pw, id)) pw.latestPty = id
-  })
-  ipcMain.on('terminal:write-active', (e, data: string) => {
-    const pw = fromEvent(e)
-    if (pw?.latestPty && owns(pw, pw.latestPty)) ptyHost?.send({ type: 'write', id: pw.latestPty, data })
   })
 
   // Saved agents for this window's project. Saves name the project they belong

@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
-import type { OriginMap, NavigationState, ZoomLevel } from '../types/map'
+import { useState, useEffect } from 'react'
+import type { OriginMap } from '../types/map'
 
 export function useMapData() {
   const [map, setMap] = useState<OriginMap | null>(null)
   const [isStale, setIsStale] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [navigation, setNavigation] = useState<NavigationState>({ level: 'project' })
 
   useEffect(() => {
     // Load initial map
@@ -31,21 +30,5 @@ export function useMapData() {
     }
   }, [])
 
-  const navigateTo = useCallback((level: ZoomLevel, systemId?: string, featureId?: string) => {
-    setNavigation({ level, systemId, featureId })
-  }, [])
-
-  const navigateBack = useCallback(() => {
-    setNavigation((prev) => {
-      if (prev.level === 'feature') {
-        return { level: 'system', systemId: prev.systemId }
-      }
-      if (prev.level === 'system') {
-        return { level: 'project' }
-      }
-      return prev
-    })
-  }, [])
-
-  return { map, isStale, loading, navigation, navigateTo, navigateBack }
+  return { map, isStale, loading }
 }

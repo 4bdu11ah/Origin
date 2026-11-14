@@ -106,38 +106,41 @@
 }
 
 /* Content */
+.app-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.app-body > .app-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.screen-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0; /* own stacking context: nothing in the canvas can sit above other screens */
+}
+
+.screen-layer.is-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .app-content {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.map-container {
-  flex: 1;
-  overflow: hidden;
-  transition: height var(--transition-default);
-}
 
 /* Resize Handle */
-.resize-handle {
-  height: 4px;
-  background: var(--border-subtle);
-  cursor: row-resize;
-  flex-shrink: 0;
-  transition: background var(--transition-default);
-}
 
-.resize-handle:hover {
-  background: var(--accent);
-}
 
 /* Terminal Container */
-.terminal-container {
-  flex-shrink: 0;
-  background: var(--bg-primary);
-  border-top: 1px solid var(--border-subtle);
-}
 
 /* Empty State */
 .empty-state {

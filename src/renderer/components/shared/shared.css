@@ -1,0 +1,53 @@
+.status-icon {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.status-icon.icon-in-progress {
+  color: var(--accent);
+}
+
+.status-icon.icon-in-review,
+.status-icon.icon-done {
+  color: #5fa878;
+}
+
+.system-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px 2px 7px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--sys) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sys) 40%, transparent);
+  border-radius: 999px;
+}
+
+.system-pill-swatch {
+  width: 8px;
+  height: 8px;
+  background: var(--sys);
+  border-radius: 2px;
+}
+
+.preview-badge {
+  padding: 3px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--text-tertiary);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-sm);
+}
+
+.face-you {
+  flex-shrink: 0;
+  display: inline-grid;
+  place-items: center;
+  font-weight: 700;
+  color: var(--bg-primary);
+  background: var(--text-secondary);
+  border-radius: 50%;
+}

@@ -334,7 +334,6 @@ export const agentStore = {
     focusedId = id
     if (id) {
       update(id, { unseen: false })
-      window.api.terminal.focus(id)
     }
     emit()
   },

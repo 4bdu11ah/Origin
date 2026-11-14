@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -21,6 +22,7 @@ import { agentStore, statusOf, useAgents, type Agent, type AgentKind } from './a
 import { CommandPalette, type PaletteItem } from './CommandPalette'
 import { Avatar } from './Avatar'
 import { displayName, personaFor } from './personas'
+import { useWorkspace, type Screen } from '../Workspace/WorkspaceContext'
 import './Canvas.css'
 
 const nodeTypes = { system: SystemNode, agent: AgentNode }
@@ -32,6 +34,8 @@ const STATUS_ORDER = { 'needs-you': 0, error: 1, unread: 2, working: 3, idle: 4,
 interface CanvasViewProps {
   map: OriginMap | null
   projectPath: string
+  /** The canvas is the screen showing (it stays mounted, hidden, behind other screens). */
+  active: boolean
 }
 
 export function CanvasView(props: CanvasViewProps) {
@@ -47,7 +51,17 @@ function systemPrompt(system: System): string {
   return `You are working on the "${system.label}" system of this project.\n${system.description}\n\nFeatures:\n${features}\n\nStart by giving me a short overview of this system and anything that looks risky.`
 }
 
+const SCREEN_ITEMS: { id: Screen; label: string }[] = [
+  { id: 'board', label: 'Board' },
+  { id: 'inbox', label: 'Inbox' },
+  { id: 'releases', label: 'Releases' },
+  { id: 'team', label: 'Team' },
+  { id: 'connections', label: 'Connections' },
+  { id: 'chief', label: 'Chief of staff' }
+]
+
 function Canvas({ map, projectPath }: CanvasViewProps) {
+  const { setScreen } = useWorkspace()
   const { settings } = useSettings()
   const { agents, closed, focusedId } = useAgents()
   const rf = useReactFlow()
@@ -61,12 +75,6 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
   const [insideId, setInsideId] = useState<string | null>(null)
   const [changes, setChanges] = useState<FileChange[]>([])
 
-  // Load this project's agents; forget them when the window goes back to home
-  // (main has already stopped their terminals and kept them saved).
-  useEffect(() => {
-    agentStore.resetFor(projectPath)
-    return () => agentStore.detach()
-  }, [projectPath])
 
   // Poll project file changes since the oldest agent started (cheap: main keeps them in memory).
   const oldestAgent = agents.reduce((min, a) => Math.min(min, a.createdAt), Infinity)
@@ -263,8 +271,11 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
         }
       })
     }
-    return items
-  }, [agents, closed, systems, overview, createAgent, openAgent, flyToNode])
+    // Anything on the canvas brings the canvas forward first; screens just switch.
+    const canvasItems = items.map((i) => ({ ...i, run: () => (setScreen('canvas'), i.run()) }))
+    const screenItems = SCREEN_ITEMS.map((s) => ({ id: `screen-${s.id}`, label: s.label, hint: 'Screen', run: () => setScreen(s.id) }))
+    return [...canvasItems.slice(0, 1), { id: 'screen-canvas', label: 'Canvas', hint: 'Screen', run: () => setScreen('canvas') }, ...screenItems, ...canvasItems.slice(1)]
+  }, [agents, closed, systems, overview, createAgent, openAgent, flyToNode, setScreen])
 
   const stripAgents = useMemo(() => {
     const now = Date.now()
@@ -329,7 +340,8 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
       {insideAgent && activities.get(insideAgent.id) && (
         <AgentSpace key={insideAgent.id} agent={insideAgent} activity={activities.get(insideAgent.id)!} onBack={overview} onOpenAgent={openAgent} />
       )}
-      {palette !== null && <CommandPalette items={paletteItems} initialQuery={palette} onClose={() => setPalette(null)} />}
+      {/* Portal: ⌘K works from every screen, even while the canvas is hidden. */}
+      {palette !== null && createPortal(<CommandPalette items={paletteItems} initialQuery={palette} onClose={() => setPalette(null)} />, document.body)}
       {detail && <DetailPanel item={detail} onClose={() => setDetail(null)} />}
     </div>
     </ActivityContext.Provider>

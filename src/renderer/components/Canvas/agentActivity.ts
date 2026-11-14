@@ -9,7 +9,8 @@ import { createContext } from 'react'
 import type { Agent } from './agentStore'
 import { CONTRACTOR, displayName, personaFor, SAMPLE_REVIEWER, type Persona } from './personas'
 
-export type TicketStatus = 'todo' | 'in-progress' | 'in-review' | 'done'
+import type { TicketStatus } from '../../types/work'
+export type { TicketStatus }
 
 export interface ActivityTicket {
   key: string

@@ -1,11 +1,14 @@
-.canvas-view {
-  position: relative;
-  width: 100%;
-  height: 100%;
+:root {
   --status-working: #5fa878;
   --status-needs-you: #d9822b;
   --status-unread: #4f86d0;
   --status-error: #d0574f;
+}
+
+.canvas-view {
+  position: relative;
+  width: 100%;
+  height: 100%;
 }
 
 .canvas-view .react-flow__pane {
@@ -631,20 +634,6 @@
   display: flex;
   align-items: center;
   gap: 7px;
-}
-
-.amap-status-icon {
-  flex-shrink: 0;
-  color: var(--text-tertiary);
-}
-
-.amap-status-icon.icon-in-progress {
-  color: var(--accent);
-}
-
-.amap-status-icon.icon-in-review,
-.amap-status-icon.icon-done {
-  color: var(--status-working);
 }
 
 .amap-ticket-key {
