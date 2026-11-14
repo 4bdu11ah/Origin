@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useState } from 'react'
 import { LiveTerminal } from './LiveTerminal'
-import { changesFor, FileChangesContext, STATUS_LABEL } from './AgentNode'
+import { changesFor, FileChangesContext, STATUS_LABEL } from './agentStatus'
 import { AgentMap } from './AgentMap'
 import { agentStore, statusOf, useAgents, type Agent } from './agentStore'
 import type { ActivityStep, AgentActivity } from './agentActivity'

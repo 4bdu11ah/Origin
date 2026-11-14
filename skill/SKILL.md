@@ -128,7 +128,8 @@ Write the output to `.origin/map.json`:
   "version": "0.1",
   "project": {
     "name": "<project name from package.json, Cargo.toml, etc.>",
-    "description": "<1-2 sentence AI-generated summary of what this project does>"
+    "description": "<1-2 sentence AI-generated summary of what this project does>",
+    "summary": "<plain words: one sentence on what the product does for its users>"
   },
   "systems": [
     {
@@ -136,11 +137,19 @@ Write the output to `.origin/map.json`:
       "label": "<Human Readable Name>",
       "description": "<1-2 short sentences>",
       "color": "<hex color>",
+      "title": "<plain words, 1-3 words, e.g. 'Reading reports'>",
+      "summary": "<plain words, one sentence, max 16 words>",
+      "icon": "<one emoji>",
+      "lane": "<main|support>",
+      "order": 1,
       "features": [
         {
           "id": "<system-id/feature-kebab-id>",
           "label": "<Feature Name>",
           "description": "<1 short sentence>",
+          "title": "<plain words, 1-4 words>",
+          "summary": "<plain words, one sentence, max 16 words>",
+          "icon": "<one emoji>",
           "nodes": [
             {
               "id": "<system-id/feature-id/node-kebab-id>",
@@ -148,7 +157,9 @@ Write the output to `.origin/map.json`:
               "type": "<component|function|route|model|middleware|class|hook|config|type|test>",
               "file": "<relative file path>",
               "line": 0,
-              "description": "<1 short sentence. State what it does, not how.>"
+              "description": "<1 short sentence. State what it does, not how.>",
+              "title": "<plain words, 2-5 words, a verb for actions: 'Start a new job'; a noun for data: 'Job request form'>",
+              "summary": "<plain words, one sentence, max 18 words>"
             }
           ]
         }
@@ -160,11 +171,25 @@ Write the output to `.origin/map.json`:
       "from": "<node-id>",
       "to": "<node-id>",
       "type": "<calls|imports|renders|data-flow|navigates|extends|emits|configures>",
-      "label": "<optional: short description like 'on submit' or 'fetches user'>"
+      "label": "<optional: short description like 'on submit' or 'fetches user'>",
+      "plain": "<plain words, 2-4 words, reads as '<from> ... <to>', e.g. 'hands over the PDF'>"
     }
+  ],
+  "flows": [
+    { "from": "<system-id>", "to": "<system-id>", "label": "<plain words, 2-4 words>" }
   ]
 }
 ```
+
+### The Plain-Words Layer
+
+Origin shows the map to non-technical builders first. Every `title`, `summary`, `plain` and flow `label` is written for a smart founder who does not code:
+
+- Say what it does for the business, not how. No jargon (API, endpoint, schema, middleware, async, ORM, payload, regex), no framework or vendor names, no file or function names.
+- Short, concrete, calm. No marketing words.
+- `lane`: `main` for systems that are steps in the product's main journey (the path work takes from input to result); `support` for behind-the-scenes systems (settings, storage, ops). Give main systems an `order` (1, 2, 3 ...) in journey order.
+- `flows`: one link per main step to the next, plus the most important support links (up to about 8 more). Base them on real edges.
+- The technical fields (`label`, `description`) stay as they are; Origin shows them when the user switches to Technical.
 
 ### System Color Palette
 
@@ -268,4 +293,5 @@ Get the commit hash via `git rev-parse HEAD`.
 2. Generate the map following the phases above
 3. Write `.origin/map.json` (pretty-printed with 2-space indent)
 4. Write `.origin/meta.json`
-5. Confirm completion to the user with a brief summary: how many systems, features, and nodes were generated
+5. Check every system, feature, node and edge has its plain-words fields
+6. Confirm completion to the user with a brief summary: how many systems, features, and nodes were generated

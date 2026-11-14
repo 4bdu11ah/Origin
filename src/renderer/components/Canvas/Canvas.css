@@ -63,138 +63,6 @@
   }
 }
 
-/* Agent card (overview) */
-.agent-node {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--bg-node);
-  border: 1px solid var(--border-subtle);
-  border-left: 3px solid var(--border-default);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: border-color var(--transition-default), box-shadow var(--transition-default), transform var(--transition-default);
-}
-
-.agent-node:hover {
-  border-color: var(--border-default);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
-}
-
-.agent-node.status-working {
-  border-left-color: var(--status-working);
-}
-
-.agent-node.status-unread {
-  border-left-color: var(--status-unread);
-}
-
-.agent-node.status-needs-you {
-  border-left-color: var(--status-needs-you);
-}
-
-.agent-node.status-error {
-  border-left-color: var(--status-error);
-}
-
-.agent-node.is-focused {
-  border-color: var(--accent);
-}
-
-.agent-node-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 10px 0 16px;
-}
-
-.agent-node-who {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.agent-node-role,
-.agent-space-role {
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
-
-.agent-node-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.agent-node.status-unread .agent-node-name {
-  font-weight: 700;
-}
-
-.agent-node-kind {
-  padding: 1px 6px;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--text-tertiary);
-  border: 1px solid var(--border-subtle);
-  border-radius: 4px;
-}
-
-.agent-node-close {
-  margin-left: auto;
-  width: 24px;
-  height: 24px;
-  font-size: 17px;
-  line-height: 1;
-  color: var(--text-tertiary);
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  opacity: 0;
-}
-
-.agent-node:hover .agent-node-close,
-.agent-node-close:focus-visible {
-  opacity: 1;
-}
-
-.agent-node-close:hover {
-  color: var(--text-primary);
-  background: var(--bg-elevated);
-}
-
-.agent-node-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-height: 0;
-  padding: 10px 16px 14px;
-}
-
-.agent-node-line {
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--text-secondary);
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  word-break: break-word;
-}
-
-.agent-node-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
-
 .text-working {
   color: var(--status-working);
 }
@@ -745,17 +613,6 @@
   color: var(--text-primary);
 }
 
-.agent-node-overlap {
-  margin-left: auto;
-  margin-right: 10px;
-  color: var(--status-needs-you);
-}
-
-.agent-node-ticket {
-  font-family: var(--font-mono);
-  color: var(--text-secondary);
-}
-
 .files-panel {
   flex: 0 1 auto;
   max-height: 45%;
@@ -1050,24 +907,6 @@
   border-color: var(--accent);
 }
 
-.canvas-hint {
-  position: absolute;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 10px 14px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm);
-}
-
-.canvas-hint code {
-  font-family: var(--font-mono);
-  color: var(--accent);
-}
-
 /* Command palette */
 .palette-overlay {
   position: absolute;
@@ -1140,4 +979,40 @@
   padding: 12px 10px;
   font-size: 13px;
   color: var(--text-tertiary);
+}
+
+/* Each agent in the strip: open it, or stop it from the little × on hover. */
+.strip-chip-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.strip-chip-close {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 50%;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.strip-chip-wrap:hover .strip-chip-close,
+.strip-chip-close:focus-visible {
+  opacity: 1;
+}
+
+.strip-chip-close:hover {
+  color: var(--text-primary);
+  border-color: var(--warning);
 }

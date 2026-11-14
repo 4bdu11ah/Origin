@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, type CSSProperties } from 'react'
 import { Background, BackgroundVariant, Handle, Position, ReactFlow, ReactFlowProvider, useReactFlow, type Edge, type Node, type NodeProps } from '@xyflow/react'
-import { STATUS_LABEL } from './AgentNode'
+import { STATUS_LABEL } from './agentStatus'
 import { statusOf, type Agent, type AgentStatus } from './agentStore'
 import { Avatar } from './Avatar'
 import { displayName, personaFor, roleOf } from './personas'
