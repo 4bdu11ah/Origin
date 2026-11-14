@@ -1,24 +1,24 @@
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
+import { app } from 'electron'
 
 export const SKILL_DIR = path.join(os.homedir(), '.claude', 'skills', 'origin')
 export const SKILL_PATH = path.join(SKILL_DIR, 'SKILL.md')
 
+/** Where the bundled skill lives: Resources/skill in a packaged app, the repo's skill/ in dev. */
+export function getBundledSkillPath(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'skill', 'SKILL.md')
+    : path.join(app.getAppPath(), 'skill', 'SKILL.md')
+}
+
 export function getSkillContent(): string {
-  // Read the skill from the bundled app resources
-  const bundledSkillPath = path.join(__dirname, '../../skill/SKILL.md')
-  if (fs.existsSync(bundledSkillPath)) {
-    return fs.readFileSync(bundledSkillPath, 'utf-8')
+  const skillPath = getBundledSkillPath()
+  if (!fs.existsSync(skillPath)) {
+    throw new Error(`Could not find the bundled SKILL.md at ${skillPath}`)
   }
-
-  // Fallback: read from the project source (dev mode)
-  const devSkillPath = path.join(process.cwd(), 'skill', 'SKILL.md')
-  if (fs.existsSync(devSkillPath)) {
-    return fs.readFileSync(devSkillPath, 'utf-8')
-  }
-
-  throw new Error('Could not find SKILL.md in bundled resources or project directory')
+  return fs.readFileSync(skillPath, 'utf-8')
 }
 
 export async function installSkill(): Promise<void> {
