@@ -85,6 +85,26 @@
   border-color: var(--border-default);
 }
 
+.view-toggle {
+  height: 32px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-default);
+}
+
+.view-toggle:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
 /* Content */
 .app-content {
   flex: 1;

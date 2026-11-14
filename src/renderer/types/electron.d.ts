@@ -24,7 +24,9 @@ export interface ElectronAPI {
   terminal: {
     spawn: (id: string) => void
     write: (id: string, data: string) => void
-    onData: (callback: (id: string, data: string) => void) => () => void
+    buffer: (id: string) => Promise<{ data: string; end: number; alive: boolean }>
+    focus: (id: string) => void
+    onData: (callback: (id: string, data: string, offset: number) => void) => () => void
     onExit: (callback: (id: string) => void) => () => void
     resize: (id: string, cols: number, rows: number) => void
     kill: (id: string) => void

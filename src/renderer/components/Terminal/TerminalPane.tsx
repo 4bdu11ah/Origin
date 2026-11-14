@@ -4,7 +4,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { useSettings } from '../../contexts/SettingsContext'
 import '@xterm/xterm/css/xterm.css'
 
-const DARK_THEME: ITheme = {
+export const DARK_THEME: ITheme = {
   background: '#0A0A0B',
   foreground: '#EDEDEF',
   cursor: '#E8853D',
@@ -29,7 +29,7 @@ const DARK_THEME: ITheme = {
   brightWhite: '#FFFFFF'
 }
 
-const LIGHT_THEME: ITheme = {
+export const LIGHT_THEME: ITheme = {
   background: '#FAF9F7',
   foreground: '#1C1B18',
   cursor: '#E8853D',

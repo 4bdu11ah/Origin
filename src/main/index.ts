@@ -20,18 +20,40 @@ let ptyHost: ChildProcess | null = null
 const activePtys = new Set<string>()
 let latestPtyId: string | null = null
 
+// Recent output per PTY, so a terminal view can detach (e.g. zoomed out to a
+// card on the canvas) and reattach without losing what happened meanwhile.
+// `total` counts every byte ever emitted; each data event carries the offset
+// it starts at, so a reattaching view can skip what the buffer already holds.
+const OUTPUT_BUFFER_MAX = 512 * 1024
+const ptyOutput = new Map<string, { data: string; total: number }>()
+
+function recordOutput(id: string, chunk: string): number {
+  const buf = ptyOutput.get(id) ?? { data: '', total: 0 }
+  const offset = buf.total
+  buf.data += chunk
+  buf.total += chunk.length
+  if (buf.data.length > OUTPUT_BUFFER_MAX) buf.data = buf.data.slice(-OUTPUT_BUFFER_MAX)
+  ptyOutput.set(id, buf)
+  return offset
+}
+
 function startPtyHost(): void {
   ptyHost = fork(path.join(__dirname, 'pty-host.js'), [], {
     env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
   })
 
   ptyHost.on('message', (msg: { type: string; id: string; data?: string; exitCode?: number }) => {
-    if (!mainWindow || mainWindow.isDestroyed()) return
     if (msg.type === 'data') {
-      mainWindow.webContents.send('terminal:data', msg.id, msg.data)
+      if (!msg.data) return
+      const offset = recordOutput(msg.id, msg.data)
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('terminal:data', msg.id, msg.data, offset)
+      }
     } else if (msg.type === 'exit') {
       activePtys.delete(msg.id)
-      mainWindow.webContents.send('terminal:exit', msg.id)
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('terminal:exit', msg.id)
+      }
     }
   })
 
@@ -79,6 +101,7 @@ function spawnPty(id: string): void {
 function killAllPtys(): void {
   for (const id of activePtys) ptyHost?.send({ type: 'kill', id })
   activePtys.clear()
+  ptyOutput.clear()
   latestPtyId = null
 }
 
@@ -243,7 +266,17 @@ function setupIPC(): void {
 
   ipcMain.on('terminal:kill', (_event, id: string) => {
     activePtys.delete(id)
+    ptyOutput.delete(id)
     ptyHost?.send({ type: 'kill', id })
+  })
+
+  ipcMain.handle('terminal:buffer', (_event, id: string) => {
+    const buf = ptyOutput.get(id)
+    return { data: buf?.data ?? '', end: buf?.total ?? 0, alive: activePtys.has(id) }
+  })
+
+  ipcMain.on('terminal:focus', (_event, id: string) => {
+    if (activePtys.has(id)) latestPtyId = id
   })
 
   ipcMain.on('terminal:write-active', (_event, data: string) => {

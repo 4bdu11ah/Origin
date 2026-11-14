@@ -5,6 +5,7 @@ import { StaleIndicator } from './components/StaleIndicator/StaleIndicator'
 import { Breadcrumb } from './components/Breadcrumb/Breadcrumb'
 import { Settings } from './components/Settings/Settings'
 import { Welcome } from './components/Welcome/Welcome'
+import { CanvasView } from './components/Canvas/CanvasView'
 import { useMapData } from './hooks/useMapData'
 import { useProject } from './hooks/useProject'
 import type { ProjectInfo } from './types/project'
@@ -20,8 +21,29 @@ export default function App() {
   return <Workspace key={project.path} project={project} />
 }
 
+type ViewMode = 'canvas' | 'classic'
+const VIEW_MODE_KEY = 'origin.viewMode'
+
+function readViewMode(): ViewMode {
+  try {
+    return localStorage.getItem(VIEW_MODE_KEY) === 'classic' ? 'classic' : 'canvas'
+  } catch {
+    return 'canvas'
+  }
+}
+
 function Workspace({ project }: { project: ProjectInfo }) {
   const { map, isStale, loading, navigation, navigateTo, navigateBack } = useMapData()
+  const [viewMode, setViewMode] = useState<ViewMode>(readViewMode)
+  const toggleViewMode = () => {
+    const next: ViewMode = viewMode === 'canvas' ? 'classic' : 'canvas'
+    setViewMode(next)
+    try {
+      localStorage.setItem(VIEW_MODE_KEY, next)
+    } catch {
+      // per-viewer convenience only
+    }
+  }
   const [terminalOpen, setTerminalOpen] = useState(true)
   const [terminalHeight, setTerminalHeight] = useState(250)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -50,21 +72,32 @@ function Workspace({ project }: { project: ProjectInfo }) {
           </button>
         </div>
         <div className="app-header-center titlebar-no-drag">
-          <Breadcrumb
-            navigation={navigation}
-            map={map}
-            onNavigate={navigateTo}
-          />
+          {viewMode === 'classic' && (
+            <Breadcrumb
+              navigation={navigation}
+              map={map}
+              onNavigate={navigateTo}
+            />
+          )}
         </div>
         <div className="app-header-right titlebar-no-drag">
           {isStale && <StaleIndicator />}
           <button
-            className="terminal-toggle"
-            onClick={() => setTerminalOpen(!terminalOpen)}
-            title={terminalOpen ? 'Hide terminal' : 'Show terminal'}
+            className="view-toggle"
+            onClick={toggleViewMode}
+            title="Switch between the flat canvas and the classic map + terminal layout"
           >
-            <TerminalIcon />
+            {viewMode === 'canvas' ? 'Canvas' : 'Classic'}
           </button>
+          {viewMode === 'classic' && (
+            <button
+              className="terminal-toggle"
+              onClick={() => setTerminalOpen(!terminalOpen)}
+              title={terminalOpen ? 'Hide terminal' : 'Show terminal'}
+            >
+              <TerminalIcon />
+            </button>
+          )}
           <button
             className="terminal-toggle"
             onClick={() => setSettingsOpen(true)}
@@ -76,6 +109,11 @@ function Workspace({ project }: { project: ProjectInfo }) {
       </header>
 
       {/* Main content area */}
+      {viewMode === 'canvas' ? (
+        <div className="app-content">
+          {loading ? <EmptyState type="loading" /> : <CanvasView map={map} projectPath={project.path} />}
+        </div>
+      ) : (
       <div className="app-content">
         <div className="map-container" style={{
           height: terminalOpen ? `calc(100% - ${terminalHeight}px)` : '100%'
@@ -109,6 +147,7 @@ function Workspace({ project }: { project: ProjectInfo }) {
           </>
         )}
       </div>
+      )}
 
       {settingsOpen && <Settings onClose={() => setSettingsOpen(false)} />}
     </div>

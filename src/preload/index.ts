@@ -43,9 +43,13 @@ contextBridge.exposeInMainWorld('api', {
 
     write: (id: string, data: string) => ipcRenderer.send('terminal:write', id, data),
 
-    onData: (callback: (id: string, data: string) => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, id: string, data: string) =>
-        callback(id, data)
+    buffer: (id: string) => ipcRenderer.invoke('terminal:buffer', id),
+
+    focus: (id: string) => ipcRenderer.send('terminal:focus', id),
+
+    onData: (callback: (id: string, data: string, offset: number) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, id: string, data: string, offset: number) =>
+        callback(id, data, offset)
       ipcRenderer.on('terminal:data', handler)
       return () => ipcRenderer.removeListener('terminal:data', handler)
     },
