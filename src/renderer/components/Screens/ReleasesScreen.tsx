@@ -1,96 +1,246 @@
-import { StatusIcon } from '../shared/StatusIcon'
+import { useMemo, useRef, useState } from 'react'
+import { Avatar } from '../Canvas/Avatar'
+import { ROSTER } from '../Canvas/personas'
 import { useWorkspace } from '../Workspace/WorkspaceContext'
 import { ScreenHeader } from './ScreenHeader'
-import type { Release } from '../../types/work'
+import type { Release, ShippedTicket } from '../../types/work'
 
-// What reached production and which tickets went with it. The latest live
-// release leads; older ones form a timeline below.
+// The project's journey as one line. The next release (being built) sits on
+// top, then what's live now, then every release back down to the origin: the
+// first commit. Tickets merge in from the left like branches; what users got
+// comes out on the right. Scroll down to go back in time.
 
-function TicketChips({ keys }: { keys: string[] }) {
-  const { tickets, openTicket } = useWorkspace()
-  if (!keys.length) return <span className="muted">No tickets</span>
-  return (
-    <div className="chip-row">
-      {keys.map((k) => {
-        const t = tickets.find((x) => x.key === k)
-        return (
-          <button key={k} className="ticket-chip" onClick={() => openTicket(k)} title="Open ticket">
-            {t && <StatusIcon status={t.status} />}
-            <span className="ticket-key">{k}</span>
-            {t?.title}
-          </button>
-        )
-      })}
-    </div>
-  )
+const W = 1040
+const SPINE = 430
+const ROW = 34
+const CARD_H = 128
+const GAP = 26
+const TICKET_DOT = SPINE - 72
+
+type Block =
+  | { kind: 'next'; id: string; tickets: ShippedTicket[]; progress: { ok: number; total: number } }
+  | { kind: 'release'; id: string; release: Release; tickets: ShippedTicket[] }
+  | { kind: 'origin'; id: string; tickets: [] }
+
+interface Placed {
+  block: Block
+  top: number
+  station: number
+  rows: number[]
 }
 
-function ChecksBar({ checks }: { checks: Release['checks'] }) {
-  const pct = Math.round((checks.passed / checks.total) * 100)
-  const all = checks.passed === checks.total
+function face(name: string, size = 22) {
+  const e = ROSTER.find((x) => x.nickname === name)
+  return e ? <Avatar persona={e} size={size} title={name} /> : null
+}
+
+function layout(blocks: Block[]): { placed: Placed[]; height: number } {
+  let y = 28
+  const placed = blocks.map((block) => {
+    const n = block.tickets.length
+    const station = y + (n ? n * ROW + 18 : 22)
+    const rows = block.tickets.map((_, i) => station - (n - i) * ROW - 4)
+    const bottom = Math.max(station + 26, station - 30 + CARD_H)
+    const p = { block, top: y, station, rows }
+    y = bottom + GAP
+    return p
+  })
+  return { placed, height: y }
+}
+
+function branch(rowY: number, station: number, x = TICKET_DOT): string {
+  const join = Math.min(rowY + 30, station - 12)
+  return `M ${x} ${rowY} C ${SPINE - 18} ${rowY}, ${SPINE} ${rowY + 6}, ${SPINE} ${join}`
+}
+
+function ChecksMeter({ passed, total }: { passed: number; total: number }) {
+  const all = passed === total
   return (
-    <span className={`checks-meter${all ? ' is-ok' : ''}`} title={`${checks.passed} of ${checks.total} checks passed`}>
+    <span className={`checks-meter${all ? ' is-ok' : ''}`} title={`${passed} of ${total} checks passed`}>
       <span className="checks-meter-track">
-        <span style={{ width: `${pct}%` }} />
+        <span style={{ width: `${Math.round((passed / Math.max(1, total)) * 100)}%` }} />
       </span>
-      {checks.passed}/{checks.total} checks
+      {passed}/{total}
     </span>
   )
 }
 
-const STATUS: Record<Release['status'], string> = { live: 'Live', superseded: 'Shipped', 'rolled-back': 'Rolled back' }
-
 export function ReleasesScreen() {
-  const { releases } = useWorkspace()
-  const [live, ...older] = releases
+  const { releases, origin, tickets, openTicket } = useWorkspace()
+  const [open, setOpen] = useState<string | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  const blocks = useMemo<Block[]>(() => {
+    const building = tickets.filter((t) => t.status === 'in-progress' || t.status === 'in-review')
+    const checks = building.flatMap((t) => t.doneWhen)
+    return [
+      {
+        kind: 'next',
+        id: 'next',
+        tickets: building.map((t) => ({ key: t.key, title: t.title, who: t.assignee?.name ?? '' })),
+        progress: { ok: checks.filter((c) => c.ok).length, total: checks.length }
+      },
+      ...releases.map((r) => ({ kind: 'release' as const, id: r.id, release: r, tickets: r.tickets })),
+      { kind: 'origin', id: 'origin', tickets: [] }
+    ]
+  }, [releases, tickets])
+
+  const { placed, height } = useMemo(() => layout(blocks), [blocks])
+  const live = placed.find((p) => p.block.kind === 'release' && p.block.release.status === 'live')
+  const next = placed[0]
+  const last = placed[placed.length - 1]
+  const shipped = releases.filter((r) => r.status !== 'rolled-back').reduce((n, r) => n + r.tickets.length, 0)
+
+  const jump = (p: Placed) => scrollRef.current?.scrollTo({ top: Math.max(0, p.top - 20), behavior: 'smooth' })
+  const ticketKnown = (key: string) => tickets.some((t) => t.key === key)
 
   return (
     <div className="screen">
-      <ScreenHeader title="Releases" sub="What reached production, and the tickets that went with it." />
-      <div className="screen-scroll">
-        {live && (
-          <section className="release-hero">
-            <div className="release-hero-top">
-              <span className="live-dot" />
-              <span className="release-hero-label">Live in production</span>
-              <span className="muted">{live.when}</span>
-              <code className="commit">{live.commit}</code>
-            </div>
-            <h2 className="release-hero-name">{live.name}</h2>
-            <ul className="highlights">
-              {live.highlights.map((h) => (
-                <li key={h}>{h}</li>
-              ))}
-            </ul>
-            <div className="release-hero-foot">
-              <TicketChips keys={live.tickets} />
-              <ChecksBar checks={live.checks} />
-            </div>
-          </section>
-        )}
+      <ScreenHeader title="Releases" sub={`${releases.length} releases · ${shipped} tickets shipped · started ${origin.age}`} />
+      <div className="screen-split">
+        <div className="screen-scroll journey-scroll" ref={scrollRef}>
+          <div className="journey" style={{ width: W, height }}>
+            <svg className="journey-lines" width={W} height={height} aria-hidden>
+              {/* The spine: dashed while the next release is being built, solid through history. */}
+              {live && <line x1={SPINE} y1={next.station} x2={SPINE} y2={live.station} className="spine-next" />}
+              <line x1={SPINE} y1={live?.station ?? next.station} x2={SPINE} y2={last.station} className="spine-past" />
 
-        <ol className="release-timeline">
-          {older.map((r) => (
-            <li key={r.id} className={`release-row status-${r.status}`}>
-              <span className="release-node" />
-              <div className="release-row-body">
-                <div className="release-row-top">
-                  <strong>{r.name}</strong>
-                  <span className={`release-status status-${r.status}`}>{STATUS[r.status]}</span>
-                  <span className="muted">{r.when}</span>
-                  <code className="commit">{r.commit}</code>
-                  <ChecksBar checks={r.checks} />
-                </div>
-                <ul className="highlights is-compact">
-                  {r.highlights.map((h) => (
-                    <li key={h}>{h}</li>
+              {placed.map((p) =>
+                p.rows.map((rowY, i) => (
+                  <g key={`${p.block.id}-${i}`} className={`branch kind-${p.block.kind}${p.block.kind === 'release' && p.block.release.status === 'rolled-back' ? ' is-rolled-back' : ''}`}>
+                    <path d={branch(rowY, p.station)} />
+                    <circle cx={TICKET_DOT} cy={rowY} r={4.5} />
+                  </g>
+                ))
+              )}
+
+              {live && <line x1={24} y1={live.station} x2={W - 24} y2={live.station} className="now-line" />}
+
+              {placed.map((p) => {
+                const b = p.block
+                if (b.kind === 'origin') {
+                  return (
+                    <g key={b.id} className="station is-origin">
+                      <circle cx={SPINE} cy={p.station} r={17} />
+                      <circle cx={SPINE} cy={p.station} r={6} className="core" />
+                    </g>
+                  )
+                }
+                if (b.kind === 'next') {
+                  return <circle key={b.id} cx={SPINE} cy={p.station} r={11} className="station is-next" />
+                }
+                const s = b.release.status
+                return (
+                  <g key={b.id} className={`station is-${s}`}>
+                    {s === 'live' && <circle cx={SPINE} cy={p.station} r={20} className="halo" />}
+                    <circle cx={SPINE} cy={p.station} r={s === 'live' ? 12 : 9} />
+                    {s === 'rolled-back' && (
+                      <text x={SPINE} y={p.station + 4} textAnchor="middle" className="rb-glyph">
+                        ↺
+                      </text>
+                    )}
+                  </g>
+                )
+              })}
+            </svg>
+
+            {live && (
+              <span className="now-tag" style={{ top: live.station - 11 }}>
+                ● Live now
+              </span>
+            )}
+
+            {placed.map((p) => {
+              const b = p.block
+              return (
+                <div key={b.id}>
+                  {b.tickets.map((t, i) => (
+                    <button
+                      key={`${t.key}-${t.title}`}
+                      className={`merge-chip kind-${b.kind}`}
+                      style={{ top: p.rows[i] - 13, right: W - TICKET_DOT + 14 }}
+                      onClick={() => ticketKnown(t.key) && openTicket(t.key)}
+                      disabled={!ticketKnown(t.key)}
+                      title={ticketKnown(t.key) ? 'Open ticket' : t.title}
+                    >
+                      {t.key !== '—' && <span className="ticket-key">{t.key}</span>}
+                      <span className="merge-title">{t.title}</span>
+                      {face(t.who, 20)}
+                    </button>
                   ))}
-                </ul>
-                <TicketChips keys={r.tickets} />
-              </div>
-            </li>
-          ))}
-        </ol>
+
+                  {b.kind === 'next' && (
+                    <div className="journey-card is-next" style={{ top: p.station - 30 }}>
+                      <div className="jc-top">
+                        <span className="jc-version">Next</span>
+                        <span className="jc-pill is-building">Building</span>
+                      </div>
+                      <div className="jc-headline">{b.tickets.length} tickets on the way</div>
+                      <div className="jc-foot">
+                        <span className="face-stack">{[...new Set(b.tickets.map((t) => t.who))].map((w) => <span key={w}>{face(w)}</span>)}</span>
+                        <ChecksMeter passed={b.progress.ok} total={b.progress.total} />
+                      </div>
+                    </div>
+                  )}
+
+                  {b.kind === 'release' && (
+                    <button
+                      className={`journey-card is-${b.release.status}${open === b.id ? ' is-open' : ''}`}
+                      style={{ top: p.station - 30 }}
+                      onClick={() => setOpen(open === b.id ? null : b.id)}
+                    >
+                      <span className="jc-top">
+                        <span className="jc-version">{b.release.version}</span>
+                        <span className="jc-date">{b.release.name}</span>
+                        {b.release.status === 'live' && <span className="jc-pill is-live">Live</span>}
+                        {b.release.status === 'rolled-back' && <span className="jc-pill is-rb">Rolled back</span>}
+                        <code className="commit">{b.release.commit}</code>
+                      </span>
+                      <span className="jc-headline">{b.release.headline}</span>
+                      {open === b.id && (
+                        <ul className="highlights is-compact">
+                          {b.release.highlights.map((h) => (
+                            <li key={h}>{h}</li>
+                          ))}
+                        </ul>
+                      )}
+                      <span className="jc-foot">
+                        <span className="face-stack">{[...new Set(b.release.tickets.map((t) => t.who))].map((w) => <span key={w}>{face(w)}</span>)}</span>
+                        <ChecksMeter {...b.release.checks} />
+                      </span>
+                    </button>
+                  )}
+
+                  {b.kind === 'origin' && (
+                    <div className="journey-card is-origin" style={{ top: p.station - 30 }}>
+                      <span className="jc-top">
+                        <span className="jc-version">Origin</span>
+                        <span className="jc-date">{origin.date}</span>
+                        <code className="commit">{origin.commit}</code>
+                      </span>
+                      <span className="jc-headline">{origin.note}</span>
+                      <span className="muted">Where it all started, {origin.age}</span>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        <nav className="version-rail" aria-label="Jump to a release">
+          {placed.map((p) => {
+            const b = p.block
+            const label = b.kind === 'next' ? 'Next' : b.kind === 'origin' ? 'Origin' : b.release.version
+            const tone = b.kind === 'release' ? b.release.status : b.kind
+            return (
+              <button key={b.id} className={`vr-item is-${tone}`} onClick={() => jump(p)}>
+                <span className="vr-dot" />
+                {label}
+              </button>
+            )
+          })}
+        </nav>
       </div>
     </div>
   )

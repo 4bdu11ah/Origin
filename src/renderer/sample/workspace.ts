@@ -5,7 +5,7 @@
 
 import { CONTRACTOR, ROSTER, type Employee } from '../components/Canvas/personas'
 import { ticketPrefix } from '../components/Canvas/agentActivity'
-import type { CatalogItem, ChiefMessage, Connection, InboxItem, LibraryEmployee, Meeting, MeetingLine, MeetingTemplate, Person, Release, TeamMember, Ticket } from '../types/work'
+import type { ProjectOrigin, CatalogItem, ChiefMessage, Connection, InboxItem, LibraryEmployee, Meeting, MeetingLine, MeetingTemplate, Person, Release, TeamMember, Ticket } from '../types/work'
 
 const [PENNY, OTTO, IVY, BRUNO, BEA] = ROSTER
 
@@ -27,6 +27,7 @@ export interface SampleWorkspace {
   tickets: Ticket[]
   inbox: InboxItem[]
   releases: Release[]
+  origin: ProjectOrigin
   team: TeamMember[]
   library: LibraryEmployee[]
   connections: Connection[]
@@ -165,10 +166,10 @@ export function sampleWorkspace(projectPath: string, mapSystems: { label: string
       summary: 'Searching orders took seconds for big accounts. Now it answers instantly.',
       doneWhen: [{ text: 'Search under half a second at 50k orders', ok: true }],
       history: [
-        { who: person(IVY), text: 'Made order search instant', when: 'Tue' },
-        { who: person(BRUNO), text: 'Verified with a big account', when: 'Tue' }
+        { who: person(IVY), text: 'Made order search instant', when: 'Today' },
+        { who: person(BRUNO), text: 'Verified with a big account', when: 'Today' }
       ],
-      release: 'r-15',
+      release: 'r-16',
       updated: 'Tue'
     },
     {
@@ -241,48 +242,95 @@ export function sampleWorkspace(projectPath: string, mapSystems: { label: string
     }
   ]
 
+  const t = (key: string, title: string, who: string) => ({ key, title, who })
   const releases: Release[] = [
     {
       id: 'r-16',
+      version: 'v0.16',
       name: 'Today, 11:40',
       commit: '8c41f2e',
       when: '2h ago',
-      highlights: ['Order search is instant for big accounts', 'Fixed a crash when a coupon expires mid-checkout'],
-      tickets: [k(10)],
+      headline: 'Order search is instant',
+      highlights: ['Order search is instant for big accounts', 'No more crash when a coupon expires mid-checkout'],
+      tickets: [t(k(10), 'Faster search on orders page', 'Ivy'), t(k(9), 'Coupon expiry crash', 'Penny')],
       checks: { passed: 42, total: 42 },
       status: 'live'
     },
     {
       id: 'r-15',
+      version: 'v0.15',
       name: 'Tue, 16:05',
       commit: '3e9b7a1',
       when: '2 days ago',
+      headline: 'New pricing, yearly discount',
       highlights: ['New pricing page with three plans', 'Yearly discount at checkout'],
-      tickets: [k(11), k(10)],
+      tickets: [t(k(11), 'New pricing page', 'Otto'), t(k(7), 'Yearly billing', 'Penny'), t(k(6), 'Plan comparison table', 'Otto')],
       checks: { passed: 40, total: 41 },
       status: 'superseded'
     },
     {
       id: 'r-14',
+      version: 'v0.14',
       name: 'Mon, 10:20',
       commit: 'b72d0c9',
       when: '4 days ago',
+      headline: 'Receipts as PDF',
       highlights: ['Receipts download as PDF'],
-      tickets: [k(8)],
+      tickets: [t(k(8), 'Receipts as PDF', 'Penny')],
       checks: { passed: 38, total: 38 },
       status: 'superseded'
     },
     {
       id: 'r-13',
+      version: 'v0.13',
       name: 'Fri, 18:30',
       commit: '51aa3fd',
       when: 'last week',
-      highlights: ['Tried a faster image loader; rolled back after slow pages'],
-      tickets: [],
+      headline: 'Faster images (rolled back)',
+      highlights: ['Tried a faster image loader; pages got slower, so it was rolled back'],
+      tickets: [t(k(5), 'Faster image loading', 'Ivy')],
       checks: { passed: 31, total: 36 },
       status: 'rolled-back'
+    },
+    {
+      id: 'r-12',
+      version: 'v0.12',
+      name: 'Nov 3',
+      commit: 'e04c6b2',
+      when: '11 days ago',
+      headline: 'Teams can invite each other',
+      highlights: ['Invite teammates by email', 'Roles: owner, member, viewer'],
+      tickets: [t(k(4), 'Team invites', 'Ivy'), t(k(3), 'Roles and permissions', 'Ivy'), t('—', 'Invite email design', 'Otto')],
+      checks: { passed: 35, total: 35 },
+      status: 'superseded'
+    },
+    {
+      id: 'r-11',
+      version: 'v0.11',
+      name: 'Oct 21',
+      commit: '9f2d1a8',
+      when: '3 weeks ago',
+      headline: 'Customers can pay',
+      highlights: ['Card payments with Stripe', 'Email receipts'],
+      tickets: [t(k(2), 'Stripe checkout', 'Penny'), t('—', 'Email receipts', 'Penny')],
+      checks: { passed: 29, total: 29 },
+      status: 'superseded'
+    },
+    {
+      id: 'r-10',
+      version: 'v0.10',
+      name: 'Oct 2',
+      commit: '47be0c3',
+      when: '6 weeks ago',
+      headline: 'First version anyone can use',
+      highlights: ['Sign up, sign in with Google', 'A first dashboard', 'Landing page'],
+      tickets: [t(k(1), 'Sign in with Google', 'Ivy'), t('—', 'First dashboard', 'Otto'), t('—', 'Landing page v1', 'Bea')],
+      checks: { passed: 18, total: 18 },
+      status: 'superseded'
     }
   ]
+
+  const origin: ProjectOrigin = { date: 'Sep 8', commit: '0a1b2c3', note: 'First commit', age: '10 weeks ago' }
 
   const team: TeamMember[] = [
     {
@@ -462,5 +510,5 @@ export function sampleWorkspace(projectPath: string, mapSystems: { label: string
     { who: 'You', text: 'Do it. And add a weekly summary of this to the chief chat.', decision: 'Otto takes dark mode', draft: { title: 'Weekly sprint summary in chief chat', owner: 'Leo' } }
   ]
 
-  return { prefix: P, tickets, inbox, releases, team, library, connections, catalog, chief, templates, meetings, meetingScript }
+  return { prefix: P, tickets, inbox, releases, origin, team, library, connections, catalog, chief, templates, meetings, meetingScript }
 }

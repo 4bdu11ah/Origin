@@ -56,16 +56,36 @@ export interface InboxItem {
   when: string
 }
 
+export interface ShippedTicket {
+  key: string
+  title: string
+  /** Nickname of who built it. */
+  who: string
+}
+
 export interface Release {
   id: string
+  version: string
+  /** When it reached production, e.g. "Today, 11:40". */
   name: string
   commit: string
   when: string
+  /** One line on what users got. */
+  headline: string
   /** Business-level lines on what changed for users. */
   highlights: string[]
-  tickets: string[]
+  tickets: ShippedTicket[]
   checks: { passed: number; total: number }
   status: 'live' | 'rolled-back' | 'superseded'
+}
+
+/** Where the project began: the first commit. */
+export interface ProjectOrigin {
+  date: string
+  commit: string
+  note: string
+  /** How long ago, in words. */
+  age: string
 }
 
 export interface TeamMember {
