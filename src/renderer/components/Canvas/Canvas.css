@@ -314,12 +314,62 @@
 .step {
   position: relative;
   display: grid;
-  grid-template-columns: 22px 1fr auto;
+  grid-template-columns: 22px 1fr;
   align-items: start;
   gap: 10px;
-  padding: 0 0 18px;
+  padding: 0 0 14px;
   font-size: 13px;
   line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.step-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  width: calc(100% + 12px);
+  margin: -3px -6px 0;
+  padding: 3px 6px 4px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.step-main:hover,
+.step.is-open .step-main {
+  background: var(--bg-tertiary);
+}
+
+.step-main:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+.step-head {
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.step-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.step-detail {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
   color: var(--text-secondary);
 }
 
@@ -371,6 +421,7 @@
 }
 
 .step-when {
+  margin-left: auto;
   font-size: 11px;
   color: var(--text-tertiary);
   white-space: nowrap;
@@ -380,10 +431,15 @@
   margin-left: 32px;
 }
 
-/* The agent map */
+/* The agent map. One shape per kind of thing:
+   agents = round avatars, tickets = square cards with a status ring,
+   systems = coloured pills, findings = dashed cards. */
 .amap {
   position: absolute;
   inset: 0;
+  --kind-claude: #d39a6a;
+  --kind-codex: #6f9be8;
+  --kind-shell: #8b8b96;
 }
 
 .amap-sample {
@@ -393,6 +449,7 @@
   padding: 3px 8px;
   font-size: 11px;
   color: var(--text-tertiary);
+  background: var(--bg-primary);
   border: 1px dashed var(--border-default);
   border-radius: var(--radius-sm);
 }
@@ -402,80 +459,153 @@
   pointer-events: none;
 }
 
-.amap-node {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px 14px;
-  background: var(--bg-node);
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  cursor: default;
+.amap-group-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-tertiary);
 }
 
+.amap-group-label.is-warn {
+  color: var(--status-needs-you);
+}
+
+/* Avatars: agents are people-shaped, coloured by kind, ringed by status. */
+.amap-avatar {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  color: #0b0b0c;
+  background: var(--kind-shell);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--bg-node), 0 0 0 3.5px var(--border-default);
+}
+
+.amap-avatar.kind-claude {
+  background: var(--kind-claude);
+}
+
+.amap-avatar.kind-codex {
+  background: var(--kind-codex);
+}
+
+.amap-avatar.kind-unknown {
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+}
+
+.amap-avatar.ring-working {
+  box-shadow: 0 0 0 2px var(--bg-node), 0 0 0 4px var(--status-working);
+}
+
+.amap-avatar.ring-unread {
+  box-shadow: 0 0 0 2px var(--bg-node), 0 0 0 4px var(--status-unread);
+}
+
+.amap-avatar.ring-conflict {
+  box-shadow: 0 0 0 2px var(--bg-node), 0 0 0 4px var(--status-needs-you);
+}
+
+.amap-avatar.ring-exited {
+  opacity: 0.5;
+}
+
+/* The agent itself */
 .amap-center {
+  display: flex;
+  flex-direction: column;
   justify-content: space-between;
-  padding: 14px 16px;
+  padding: 16px 18px;
+  background: var(--bg-node);
   border: 1px solid var(--border-default);
-  border-left: 3px solid var(--border-default);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+  border-radius: 18px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
 }
 
 .amap-center.status-working {
-  border-left-color: var(--status-working);
+  border-color: color-mix(in srgb, var(--status-working) 55%, var(--border-default));
 }
 
 .amap-center.status-unread {
-  border-left-color: var(--status-unread);
+  border-color: color-mix(in srgb, var(--status-unread) 55%, var(--border-default));
 }
 
 .amap-center-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+}
+
+.amap-center-id {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .amap-center-name {
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 650;
   color: var(--text-primary);
-}
-
-.amap-now {
-  font-size: 13px;
-  line-height: 1.4;
-  color: var(--text-primary);
-}
-
-.amap-now-label {
-  margin-right: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  color: var(--accent);
 }
 
 .amap-center-status {
   font-size: 12px;
+  text-transform: capitalize;
   color: var(--text-tertiary);
+}
+
+.amap-now {
+  padding: 7px 10px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+}
+
+/* Tickets: square, issue-like */
+.amap-ticket {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
 }
 
 .amap-ticket-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 7px;
+}
+
+.amap-status-icon {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.amap-status-icon.icon-in-progress {
+  color: var(--accent);
+}
+
+.amap-status-icon.icon-in-review,
+.amap-status-icon.icon-done {
+  color: var(--status-working);
 }
 
 .amap-ticket-key {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
 }
 
 .amap-ticket-title {
@@ -486,25 +616,29 @@
 }
 
 .amap-ticket.is-found {
-  border-style: dashed;
+  background: transparent;
+  border: 1.5px dashed color-mix(in srgb, var(--status-unread) 60%, var(--border-default));
 }
 
-.amap-pill {
+.amap-new {
+  margin-left: auto;
   padding: 1px 7px;
   font-size: 11px;
-  color: var(--text-secondary);
-  background: var(--bg-tertiary);
+  font-weight: 600;
+  color: var(--status-unread);
+  background: color-mix(in srgb, var(--status-unread) 14%, transparent);
   border-radius: 10px;
 }
 
-.amap-pill.pill-in-progress {
-  color: var(--accent);
-  background: var(--accent-dim);
-}
-
-.amap-pill.pill-todo {
-  color: var(--status-unread);
-  background: color-mix(in srgb, var(--status-unread) 14%, transparent);
+/* Other agents: avatar + one line on what links them */
+.amap-peer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px 0 14px;
+  background: var(--bg-node);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
 }
 
 .amap-peer.is-link {
@@ -513,50 +647,65 @@
 
 .amap-peer.is-link:hover {
   border-color: var(--border-default);
+  background: var(--bg-tertiary);
 }
 
-.amap-peer.is-overlap {
-  border-color: color-mix(in srgb, var(--status-needs-you) 55%, transparent);
-  background: color-mix(in srgb, var(--status-needs-you) 7%, var(--bg-node));
+.amap-peer.is-conflict {
+  border-color: color-mix(in srgb, var(--status-needs-you) 60%, transparent);
+  background: color-mix(in srgb, var(--status-needs-you) 8%, var(--bg-node));
 }
 
-.amap-relation {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-}
-
-.amap-relation.is-overlap {
-  color: var(--status-needs-you);
+.amap-peer-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .amap-peer-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .amap-peer-detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   color: var(--text-secondary);
 }
 
-.amap-system {
-  justify-content: center;
-  gap: 2px;
-  border-top: 3px solid var(--border-default);
+.amap-peer.is-conflict .amap-peer-detail {
+  color: var(--status-needs-you);
 }
 
-.amap-system-kind {
-  font-size: 10px;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
+/* Systems: areas of the product, coloured like on the map */
+.amap-system {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 16px;
+  background: color-mix(in srgb, var(--sys) 14%, var(--bg-primary));
+  border: 1px solid color-mix(in srgb, var(--sys) 45%, transparent);
+  border-radius: 999px;
+}
+
+.amap-system-swatch {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  background: var(--sys);
+  border-radius: 3px;
 }
 
 .amap-system-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);

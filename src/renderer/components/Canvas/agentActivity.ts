@@ -33,7 +33,10 @@ export interface ActivityPeer {
 
 export interface ActivityStep {
   kind: 'read' | 'edit' | 'run' | 'found' | 'ask' | 'pass' | 'fail'
+  /** Six words at most, in business terms. Never file names or code. */
   text: string
+  /** About three short lines on what happened and why it matters. */
+  detail: string
   when: string
 }
 
@@ -68,33 +71,93 @@ const SCENARIOS: Scenario[] = [
   {
     ticket: 'Fix wrong total at checkout',
     found: 'Payment test fails at random',
-    now: 'Running the checkout tests',
+    now: 'Re-checking the checkout tests',
     systems: ['Payments', 'Checkout'],
     together: 'Reviews its changes',
-    overlap: 'Both editing cart.ts',
+    overlap: 'Both changing how totals add up',
     steps: [
-      { kind: 'read', text: 'Read the checkout flow (6 files)', when: '9m' },
-      { kind: 'found', text: 'Found the bug: tax added twice', when: '7m' },
-      { kind: 'edit', text: 'Edited cart.ts and totals.ts', when: '5m' },
-      { kind: 'fail', text: 'Tests: 2 failing', when: '3m' },
-      { kind: 'edit', text: 'Fixed rounding in totals.ts', when: '2m' },
-      { kind: 'run', text: 'Running the checkout tests', when: 'now' }
+      {
+        kind: 'read',
+        text: 'Learned how checkout totals work',
+        detail: 'Followed an order from cart to payment. Totals are built in two places: once for the cart and once again at payment.',
+        when: '9m'
+      },
+      {
+        kind: 'found',
+        text: 'Found tax charged twice',
+        detail: 'Tax is added to the cart total and again at payment, so customers pay it twice. Only orders with tax are affected.',
+        when: '7m'
+      },
+      {
+        kind: 'edit',
+        text: 'Tax now added only once',
+        detail: 'Tax is now worked out once, at payment. The cart shows the same number the customer is charged.',
+        when: '5m'
+      },
+      {
+        kind: 'fail',
+        text: 'Two checkout tests failing',
+        detail: 'Both failures are orders with a discount code. Totals are off by one cent, so it looks like rounding.',
+        when: '3m'
+      },
+      {
+        kind: 'edit',
+        text: 'Fixed rounding on discounted orders',
+        detail: 'Discounts are now rounded after tax, matching how the payment provider rounds. Totals match to the cent.',
+        when: '2m'
+      },
+      {
+        kind: 'run',
+        text: 'Re-checking the checkout tests',
+        detail: 'Running every checkout test again to confirm both fixes hold. If they pass, the ticket moves to review.',
+        when: 'now'
+      }
     ]
   },
   {
     ticket: 'Add password reset by email',
     found: 'Login has no rate limit',
-    now: 'Waiting for you to pick an email provider',
+    now: 'Needs you: pick email provider',
     systems: ['Auth', 'Email'],
     together: 'Builds the reset page',
-    overlap: 'Both changing the users table',
+    overlap: 'Both changing user accounts',
     steps: [
-      { kind: 'read', text: 'Read the auth module (9 files)', when: '14m' },
-      { kind: 'edit', text: 'Added a reset token to users', when: '10m' },
-      { kind: 'edit', text: 'Added the /reset endpoint', when: '6m' },
-      { kind: 'found', text: 'Noticed login has no rate limit', when: '4m' },
-      { kind: 'pass', text: 'Tests: 18 passing', when: '2m' },
-      { kind: 'ask', text: 'Asked which email provider to use', when: 'now' }
+      {
+        kind: 'read',
+        text: 'Learned how sign-in works',
+        detail: 'Users sign in with email and password. There is no way to recover an account today, so locked-out users email support.',
+        when: '14m'
+      },
+      {
+        kind: 'edit',
+        text: 'Accounts can hold reset links',
+        detail: 'Each account can now store a one-time reset link. Links expire after an hour and work only once.',
+        when: '10m'
+      },
+      {
+        kind: 'edit',
+        text: 'Built the password reset flow',
+        detail: 'Users ask for a reset, get a link, and pick a new password. Old sessions are signed out afterwards.',
+        when: '6m'
+      },
+      {
+        kind: 'found',
+        text: 'Login has no attempt limit',
+        detail: 'Anyone can guess passwords without limit. Not part of this ticket, so it went to the inbox as a new one.',
+        when: '4m'
+      },
+      {
+        kind: 'pass',
+        text: 'All sign-in tests pass',
+        detail: 'Existing sign-in still works, and the new reset flow passes its own tests. Nothing is sent by email yet.',
+        when: '2m'
+      },
+      {
+        kind: 'ask',
+        text: 'Needs you: pick email provider',
+        detail: 'Reset links need to be emailed and the project has no email service yet. It suggests Resend or Postmark.',
+        when: 'now'
+      }
     ]
   },
   {
@@ -103,13 +166,38 @@ const SCENARIOS: Scenario[] = [
     now: 'Checking the page on mobile',
     systems: ['Website', 'Design system'],
     together: 'Writes the new headline',
-    overlap: 'Both editing Button styles',
+    overlap: 'Both restyling the main buttons',
     steps: [
-      { kind: 'read', text: 'Read the landing page and brand notes', when: '12m' },
-      { kind: 'edit', text: 'Rebuilt the hero section', when: '8m' },
-      { kind: 'edit', text: 'Swapped in the new screenshot', when: '6m' },
-      { kind: 'found', text: 'Saw outdated prices on /pricing', when: '4m' },
-      { kind: 'run', text: 'Checking the page on mobile', when: 'now' }
+      {
+        kind: 'read',
+        text: 'Reviewed landing page and brand',
+        detail: 'Compared the current page with the brand notes. The hero still uses last year’s message and colours.',
+        when: '12m'
+      },
+      {
+        kind: 'edit',
+        text: 'Rebuilt the top of page',
+        detail: 'New layout with the headline on the left and the product on the right. The sign-up button is above the fold.',
+        when: '8m'
+      },
+      {
+        kind: 'edit',
+        text: 'Added the new product screenshot',
+        detail: 'Swapped the old illustration for a real screenshot of the app, so visitors see what they get.',
+        when: '6m'
+      },
+      {
+        kind: 'found',
+        text: 'Pricing page shows old prices',
+        detail: 'The pricing page still lists last year’s plans. Out of scope here, so it went to the inbox.',
+        when: '4m'
+      },
+      {
+        kind: 'run',
+        text: 'Checking the page on mobile',
+        detail: 'Viewing the new hero at phone and tablet sizes to make sure nothing overlaps or gets cut off.',
+        when: 'now'
+      }
     ]
   }
 ]

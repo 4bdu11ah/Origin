@@ -2,7 +2,7 @@ import { useContext, useEffect, useMemo, useState } from 'react'
 import { LiveTerminal } from './LiveTerminal'
 import { changesFor, FileChangesContext, STATUS_LABEL } from './AgentNode'
 import { AgentMap } from './AgentMap'
-import { agentStore, statusOf, type Agent } from './agentStore'
+import { agentStore, statusOf, useAgents, type Agent } from './agentStore'
 import type { ActivityStep, AgentActivity } from './agentActivity'
 
 export type SpaceTab = 'steps' | 'terminal' | 'files'
@@ -47,6 +47,7 @@ export function AgentSpace({ agent, activity, onBack, onOpenAgent }: AgentSpaceP
     tabByAgent.set(agent.id, t)
     setTabState(t)
   }
+  const { agents } = useAgents()
   const status = statusOf(agent)
 
   return (
@@ -74,7 +75,7 @@ export function AgentSpace({ agent, activity, onBack, onOpenAgent }: AgentSpaceP
 
       <div className="agent-space-body">
         <div className="agent-space-map">
-          <AgentMap agent={agent} activity={activity} onOpenAgent={onOpenAgent} />
+          <AgentMap agent={agent} agents={agents} activity={activity} onOpenAgent={onOpenAgent} />
         </div>
 
         <aside className={`agent-space-side side-${tab}`}>
@@ -132,19 +133,25 @@ export function AgentSpace({ agent, activity, onBack, onOpenAgent }: AgentSpaceP
 }
 
 function Steps({ activity, onReply }: { activity: AgentActivity; onReply: () => void }) {
-  const last = activity.steps[activity.steps.length - 1]
+  const [open, setOpen] = useState<number | null>(null)
+  const last = activity.steps.length - 1
   return (
     <div className="steps">
       <ol className="steps-list">
         {activity.steps.map((s, i) => (
-          <li key={i} className={`step step-${s.kind}${i === activity.steps.length - 1 ? ' is-now' : ''}`}>
+          <li key={i} className={`step step-${s.kind}${i === last ? ' is-now' : ''}${open === i ? ' is-open' : ''}`}>
             <span className="step-icon" aria-hidden>{STEP_ICON[s.kind]}</span>
-            <span className="step-text">{s.text}</span>
-            <span className="step-when">{s.when === 'now' ? 'now' : `${s.when} ago`}</span>
+            <button className="step-main" aria-expanded={open === i} onClick={() => setOpen(open === i ? null : i)}>
+              <span className="step-head">
+                <span className="step-text">{s.text}</span>
+                <span className="step-when">{s.when === 'now' ? 'now' : `${s.when} ago`}</span>
+              </span>
+              {open === i && <span className="step-detail">{s.detail}</span>}
+            </button>
           </li>
         ))}
       </ol>
-      {last?.kind === 'ask' && (
+      {activity.steps[last]?.kind === 'ask' && (
         <button className="strip-btn steps-reply" onClick={onReply}>
           Reply in terminal
         </button>
