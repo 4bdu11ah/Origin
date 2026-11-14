@@ -1,5 +1,6 @@
 import type { OriginMap } from './map'
 import type { OriginSettings } from './settings'
+import type { ProjectInfo, RecentProject } from './project'
 
 export interface ElectronAPI {
   loadMap: () => Promise<OriginMap | null>
@@ -11,6 +12,15 @@ export interface ElectronAPI {
     update: (partial: Partial<OriginSettings>) => Promise<OriginSettings>
   }
   appVersion: () => Promise<string>
+  project: {
+    current: () => Promise<ProjectInfo | null>
+    recent: () => Promise<RecentProject[]>
+    pick: () => Promise<ProjectInfo | null>
+    open: (dir: string) => Promise<ProjectInfo>
+    close: () => Promise<void>
+    removeRecent: (dir: string) => Promise<RecentProject[]>
+    onChange: (callback: (project: ProjectInfo | null) => void) => () => void
+  }
   terminal: {
     spawn: (id: string) => void
     write: (id: string, data: string) => void

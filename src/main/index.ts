@@ -1,14 +1,17 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
+import type { MenuItemConstructorOptions } from 'electron'
 import { fork, type ChildProcess } from 'child_process'
 import path from 'path'
 import os from 'os'
 import { installSkill } from './skill-installer'
 import { MapWatcher } from './file-watcher'
 import { SettingsManager } from './settings-manager'
+import { ProjectManager, type ProjectInfo } from './project-manager'
 
 let mainWindow: BrowserWindow | null = null
 let mapWatcher: MapWatcher | null = null
 let settingsManager: SettingsManager | null = null
+let projectManager: ProjectManager | null = null
 
 // PTY host — a separate Node.js process that manages all PTY instances.
 // node-pty shells exit immediately when spawned from Electron's main process
@@ -43,7 +46,7 @@ function spawnPty(id: string): void {
   if (activePtys.has(id)) return
 
   const shellPath = process.env.SHELL || '/bin/zsh'
-  const cwd = process.cwd()
+  const cwd = projectManager?.getCurrent()?.path ?? os.homedir()
 
   const env: Record<string, string> = {
     HOME: os.homedir(),
@@ -71,6 +74,91 @@ function spawnPty(id: string): void {
     cwd,
     env
   })
+}
+
+function killAllPtys(): void {
+  for (const id of activePtys) ptyHost?.send({ type: 'kill', id })
+  activePtys.clear()
+  latestPtyId = null
+}
+
+// --- Projects ---------------------------------------------------------------
+// One project is open at a time. Terminals and the map watcher belong to it,
+// so switching projects tears both down and starts fresh in the new folder.
+
+function openProject(dir: string): ProjectInfo {
+  if (!projectManager) throw new Error('Project manager not ready')
+  const info = projectManager.open(dir)
+
+  killAllPtys()
+  mapWatcher?.stop()
+  setupMapWatcher(info.path)
+
+  app.addRecentDocument(info.path)
+  buildMenu()
+  mainWindow?.webContents.send('project:changed', info)
+  return info
+}
+
+function closeProject(): void {
+  killAllPtys()
+  mapWatcher?.stop()
+  mapWatcher = null
+  projectManager?.close()
+  buildMenu()
+  mainWindow?.webContents.send('project:changed', null)
+}
+
+async function pickProject(): Promise<ProjectInfo | null> {
+  const options: Electron.OpenDialogOptions = {
+    title: 'Open project folder',
+    buttonLabel: 'Open',
+    properties: ['openDirectory', 'createDirectory']
+  }
+  const result = mainWindow
+    ? await dialog.showOpenDialog(mainWindow, options)
+    : await dialog.showOpenDialog(options)
+  if (result.canceled || result.filePaths.length === 0) return null
+  return openProject(result.filePaths[0])
+}
+
+function buildMenu(): void {
+  const isMac = process.platform === 'darwin'
+  const recent = projectManager?.getRecent().filter((p) => !p.missing) ?? []
+  const current = projectManager?.getCurrent() ?? null
+
+  const recentItems: MenuItemConstructorOptions[] = recent.length
+    ? [
+        ...recent.map((p) => ({ label: `${p.name}  ${p.displayPath}`, click: () => openProject(p.path) })),
+        { type: 'separator' },
+        {
+          label: 'Clear Recent',
+          click: () => {
+            projectManager?.clearRecent()
+            app.clearRecentDocuments()
+            buildMenu()
+          }
+        }
+      ]
+    : [{ label: 'No recent projects', enabled: false }]
+
+  const template: MenuItemConstructorOptions[] = [
+    ...(isMac ? [{ role: 'appMenu' } as MenuItemConstructorOptions] : []),
+    {
+      label: 'File',
+      submenu: [
+        { label: 'Open Folder…', accelerator: 'CmdOrCtrl+O', click: () => void pickProject() },
+        { label: 'Open Recent', submenu: recentItems },
+        { type: 'separator' },
+        { label: 'Close Project', enabled: !!current, click: () => closeProject() },
+        ...(isMac ? [] : [{ type: 'separator' } as MenuItemConstructorOptions, { role: 'quit' } as MenuItemConstructorOptions])
+      ]
+    },
+    { role: 'editMenu' },
+    { role: 'viewMenu' },
+    { role: 'windowMenu' }
+  ]
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
 
 function createWindow(): void {
@@ -130,6 +218,17 @@ function setupIPC(): void {
     return app.getVersion()
   })
 
+  ipcMain.handle('project:current', () => projectManager?.getCurrent() ?? null)
+  ipcMain.handle('project:recent', () => projectManager?.getRecent() ?? [])
+  ipcMain.handle('project:pick', () => pickProject())
+  ipcMain.handle('project:open', (_event, dir: string) => openProject(dir))
+  ipcMain.handle('project:close', () => closeProject())
+  ipcMain.handle('project:remove-recent', (_event, dir: string) => {
+    projectManager?.removeRecent(dir)
+    buildMenu()
+    return projectManager?.getRecent() ?? []
+  })
+
   ipcMain.handle('terminal:spawn', (_event, id: string) => {
     spawnPty(id)
   })
@@ -154,9 +253,8 @@ function setupIPC(): void {
   })
 }
 
-function setupMapWatcher(): void {
-  const cwd = process.cwd()
-  mapWatcher = new MapWatcher(cwd)
+function setupMapWatcher(projectDir: string): void {
+  mapWatcher = new MapWatcher(projectDir)
 
   mapWatcher.onMapChange((map) => {
     mainWindow?.webContents.send('map:updated', map)
@@ -172,11 +270,23 @@ function setupMapWatcher(): void {
 app.whenReady().then(async () => {
   await installSkill()
   settingsManager = new SettingsManager()
+  projectManager = new ProjectManager()
 
   startPtyHost()
   setupIPC()
+  buildMenu()
   createWindow()
-  setupMapWatcher()
+
+  // Reopen the project that was open at last quit. The renderer asks for the
+  // current project on mount, so it picks this up without an event.
+  const last = projectManager.getLastOpen()
+  if (last) {
+    try {
+      openProject(last)
+    } catch (err) {
+      console.error('Failed to reopen last project:', err)
+    }
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -185,12 +295,18 @@ app.whenReady().then(async () => {
   })
 })
 
+// On macOS the app stays alive with no window; reopening from the dock creates
+// a new window on the same project, so keep the PTY host and watcher running.
 app.on('window-all-closed', () => {
+  killAllPtys()
+  if (process.platform !== 'darwin') {
+    app.quit()
+  }
+})
+
+app.on('will-quit', () => {
   mapWatcher?.stop()
   ptyHost?.kill()
   ptyHost = null
   activePtys.clear()
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
 })

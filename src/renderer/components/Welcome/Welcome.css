@@ -1,0 +1,169 @@
+.welcome {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-primary);
+}
+
+.welcome-titlebar {
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.welcome-body {
+  flex: 1;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 8vh 24px 48px;
+  overflow-y: auto;
+}
+
+.welcome-title {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  color: var(--text-primary);
+}
+
+.welcome-subtitle {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.welcome-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 28px;
+  padding: 10px 16px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--bg-primary);
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-default);
+}
+
+.welcome-open:hover {
+  background: var(--accent-hover);
+}
+
+.welcome-open:focus-visible,
+.welcome-recent-item:focus-visible,
+.welcome-recent-remove:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.welcome-kbd {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.welcome-error {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--warning);
+}
+
+.welcome-recent {
+  margin-top: 40px;
+}
+
+.welcome-section-title {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.welcome-recent-list {
+  list-style: none;
+}
+
+.welcome-recent-row {
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-default);
+}
+
+.welcome-recent-row:hover {
+  background: var(--bg-tertiary);
+}
+
+.welcome-recent-item {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.welcome-recent-item:disabled {
+  cursor: default;
+}
+
+.welcome-recent-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.welcome-recent-path {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.welcome-recent-row.is-missing .welcome-recent-name {
+  color: var(--text-tertiary);
+}
+
+.welcome-recent-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 6px;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-default), background var(--transition-default);
+}
+
+.welcome-recent-row:hover .welcome-recent-remove,
+.welcome-recent-remove:focus-visible {
+  opacity: 1;
+}
+
+.welcome-recent-remove:hover {
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+}

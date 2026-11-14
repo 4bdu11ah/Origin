@@ -12,7 +12,7 @@
     "package:win": "electron-builder --win",
     "package:linux": "electron-builder --linux",
     "postinstall": "electron-rebuild -f -w node-pty",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.10.0",

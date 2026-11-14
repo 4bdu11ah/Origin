@@ -24,6 +24,20 @@ contextBridge.exposeInMainWorld('api', {
 
   appVersion: () => ipcRenderer.invoke('app:version'),
 
+  project: {
+    current: () => ipcRenderer.invoke('project:current'),
+    recent: () => ipcRenderer.invoke('project:recent'),
+    pick: () => ipcRenderer.invoke('project:pick'),
+    open: (dir: string) => ipcRenderer.invoke('project:open', dir),
+    close: () => ipcRenderer.invoke('project:close'),
+    removeRecent: (dir: string) => ipcRenderer.invoke('project:remove-recent', dir),
+    onChange: (callback: (project: unknown) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, project: unknown) => callback(project)
+      ipcRenderer.on('project:changed', handler)
+      return () => ipcRenderer.removeListener('project:changed', handler)
+    }
+  },
+
   terminal: {
     spawn: (id: string) => ipcRenderer.invoke('terminal:spawn', id),
 

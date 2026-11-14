@@ -9,6 +9,10 @@ export interface OriginMapData {
   edges: unknown[]
 }
 
+// Directories never worth watching for staleness (dependencies, VCS, build output).
+const IGNORED_SEGMENT =
+  /(^|[/\\])(node_modules|\.git|\.origin|dist|out|build|release|\.next|\.turbo|\.cache|coverage|\.venv|venv|__pycache__|target)([/\\]|$)/
+
 type MapChangeCallback = (map: OriginMapData) => void
 type StaleChangeCallback = (isStale: boolean) => void
 
@@ -57,16 +61,13 @@ export class MapWatcher {
     this.mapWatcher.on('add', () => this.handleMapChange())
     this.mapWatcher.on('change', () => this.handleMapChange())
 
-    // Watch source files to detect staleness
+    // Watch source files to detect staleness. chokidar 4 has no glob support,
+    // so ignore by path segment.
     this.srcWatcher = watch(this.projectDir, {
-      ignored: [
-        '**/node_modules/**',
-        '**/.git/**',
-        '**/dist/**',
-        '**/release/**',
-        '**/.origin/**',
-        '**/.DS_Store'
-      ],
+      ignored: (p: string) => {
+        const rel = path.relative(this.projectDir, p)
+        return IGNORED_SEGMENT.test(rel) || rel.endsWith('.DS_Store')
+      },
       ignoreInitial: true,
       persistent: true
     })

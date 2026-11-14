@@ -4,10 +4,23 @@ import { Terminal } from './components/Terminal/Terminal'
 import { StaleIndicator } from './components/StaleIndicator/StaleIndicator'
 import { Breadcrumb } from './components/Breadcrumb/Breadcrumb'
 import { Settings } from './components/Settings/Settings'
+import { Welcome } from './components/Welcome/Welcome'
 import { useMapData } from './hooks/useMapData'
+import { useProject } from './hooks/useProject'
+import type { ProjectInfo } from './types/project'
 import './App.css'
 
 export default function App() {
+  const { project, ready } = useProject()
+
+  if (!ready) return <div className="app" />
+  if (!project) return <Welcome />
+  // Keyed by path: switching projects remounts the workspace, so the map
+  // reloads and terminals restart in the new folder.
+  return <Workspace key={project.path} project={project} />
+}
+
+function Workspace({ project }: { project: ProjectInfo }) {
   const { map, isStale, loading, navigation, navigateTo, navigateBack } = useMapData()
   const [terminalOpen, setTerminalOpen] = useState(true)
   const [terminalHeight, setTerminalHeight] = useState(250)
@@ -28,9 +41,13 @@ export default function App() {
       <header className="app-header titlebar-drag-region">
         <div className="app-header-left">
           <span className="app-logo">Origin</span>
-          {map && (
-            <span className="app-project-name">{map.project.name}</span>
-          )}
+          <button
+            className="app-project-name titlebar-no-drag"
+            onClick={() => window.api.project.close()}
+            title={`${project.path}\nClick to switch project`}
+          >
+            {project.name}
+          </button>
         </div>
         <div className="app-header-center titlebar-no-drag">
           <Breadcrumb
