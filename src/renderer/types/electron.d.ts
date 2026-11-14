@@ -11,6 +11,22 @@ export interface AgentHookEvent {
   toolName?: string
 }
 
+export interface SavedAgent {
+  id: string
+  kind: 'claude' | 'codex' | 'shell'
+  name: string
+  systemId: string | null
+  createdAt: number
+  sessionId: string | null
+  exited?: boolean
+  closedAt?: number
+}
+
+export interface SavedAgents {
+  open: SavedAgent[]
+  closed: SavedAgent[]
+}
+
 export interface ElectronAPI {
   loadMap: () => Promise<OriginMap | null>
   onMapUpdate: (callback: (map: OriginMap) => void) => () => void
@@ -36,11 +52,13 @@ export interface ElectronAPI {
     onChange: (callback: (project: ProjectInfo | null) => void) => () => void
   }
   agents: {
+    load: () => Promise<({ project: string } & SavedAgents) | null>
+    save: (project: string, data: SavedAgents) => void
     /** Lifecycle events from agent hooks (Claude Code), tagged with the agent id. */
     onHook: (callback: (event: AgentHookEvent) => void) => () => void
   }
   terminal: {
-    spawn: (id: string, launch?: { kind: 'claude' | 'codex'; prompt?: string }) => void
+    spawn: (id: string, launch?: { kind: 'claude' | 'codex'; prompt?: string; resume?: string }) => void
     write: (id: string, data: string) => void
     buffer: (id: string) => Promise<{ data: string; end: number; alive: boolean }>
     focus: (id: string) => void

@@ -9,12 +9,14 @@ import { MapWatcher } from './file-watcher'
 import { SettingsManager } from './settings-manager'
 import { ProjectManager, type ProjectInfo } from './project-manager'
 import { AgentHooks } from './agent-hooks'
+import { AgentRecordStore } from './agent-records'
 
 let mainWindow: BrowserWindow | null = null
 let mapWatcher: MapWatcher | null = null
 let settingsManager: SettingsManager | null = null
 let projectManager: ProjectManager | null = null
 let agentHooks: AgentHooks | null = null
+let agentRecords: AgentRecordStore | null = null
 
 // PTY host — a separate Node.js process that manages all PTY instances.
 // node-pty shells exit immediately when spawned from Electron's main process
@@ -66,7 +68,7 @@ function startPtyHost(): void {
   })
 }
 
-export type AgentLaunch = { kind: 'claude' | 'codex'; prompt?: string }
+export type AgentLaunch = { kind: 'claude' | 'codex'; prompt?: string; resume?: string }
 
 function shellQuote(s: string): string {
   return `'${s.replace(/'/g, `'\\''`)}'`
@@ -77,7 +79,8 @@ function launchCommand(launch: AgentLaunch): string {
   const prompt = launch.prompt ? ` ${shellQuote(launch.prompt)}` : ''
   if (launch.kind === 'claude') {
     const settings = agentHooks?.settingsPath && fs.existsSync(agentHooks.settingsPath) ? ` --settings ${shellQuote(agentHooks.settingsPath)}` : ''
-    return `claude${settings}${prompt}`
+    const resume = launch.resume ? ` --resume ${shellQuote(launch.resume)}` : ''
+    return `claude${settings}${resume}${prompt}`
   }
   return `codex${prompt}`
 }
@@ -121,6 +124,8 @@ function spawnPty(id: string, launch?: AgentLaunch): void {
 }
 
 function killAllPtys(): void {
+  // Agents are being torn down, not closed: keep the saved list as it is.
+  agentRecords?.freeze()
   for (const id of activePtys) ptyHost?.send({ type: 'kill', id })
   activePtys.clear()
   ptyOutput.clear()
@@ -206,8 +211,14 @@ function buildMenu(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
 
+// Automated tests run the app without a visible window, so it never takes
+// focus or switches the user's desktop space.
+const HIDDEN_WINDOW = process.env.ORIGIN_HIDDEN_WINDOW === '1'
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
+    show: !HIDDEN_WINDOW,
+    paintWhenInitiallyHidden: true,
     width: 1400,
     height: 900,
     minWidth: 900,
@@ -275,7 +286,33 @@ function setupIPC(): void {
   })
 
   ipcMain.handle('terminal:spawn', (_event, id: string, launch?: AgentLaunch) => {
-    spawnPty(id, launch && (launch.kind === 'claude' || launch.kind === 'codex') ? { kind: launch.kind, prompt: typeof launch.prompt === 'string' ? launch.prompt : undefined } : undefined)
+    const valid = launch && (launch.kind === 'claude' || launch.kind === 'codex')
+    spawnPty(
+      id,
+      valid
+        ? {
+            kind: launch.kind,
+            prompt: typeof launch.prompt === 'string' ? launch.prompt : undefined,
+            resume: typeof launch.resume === 'string' && /^[A-Za-z0-9-]{1,100}$/.test(launch.resume) ? launch.resume : undefined
+          }
+        : undefined
+    )
+  })
+
+  // Saved agents for the open project. Saves name the project they belong to,
+  // so a late save from a project that was just closed can't land in another.
+  ipcMain.handle('agents:load', () => {
+    const current = projectManager?.getCurrent()
+    return current && agentRecords ? { project: current.path, ...agentRecords.load(current.path) } : null
+  })
+  ipcMain.on('agents:save', (_event, project: string, data: unknown) => {
+    const current = projectManager?.getCurrent()
+    if (!current || current.path !== project || !agentRecords) return
+    try {
+      agentRecords.save(current.path, data)
+    } catch (err) {
+      console.error('Failed to save agents:', err)
+    }
   })
 
   ipcMain.on('terminal:write', (_event, id: string, data: string) => {
@@ -371,11 +408,18 @@ function setupMapWatcher(projectDir: string): void {
   mapWatcher.start()
 }
 
+if (HIDDEN_WINDOW && process.platform === 'darwin') {
+  // No dock icon and never the active app.
+  app.on('will-finish-launching', () => app.setActivationPolicy('accessory'))
+}
+
 app.whenReady().then(async () => {
+  if (HIDDEN_WINDOW && process.platform === 'darwin') app.setActivationPolicy('accessory')
   await installSkill()
   settingsManager = new SettingsManager()
   projectManager = new ProjectManager()
 
+  agentRecords = new AgentRecordStore()
   agentHooks = new AgentHooks()
   try {
     await agentHooks.start((e) => {
@@ -416,6 +460,8 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
+
+app.on('before-quit', () => agentRecords?.freeze())
 
 app.on('will-quit', () => {
   mapWatcher?.stop()

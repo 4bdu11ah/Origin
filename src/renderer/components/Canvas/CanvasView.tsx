@@ -49,11 +49,12 @@ function systemPrompt(system: System): string {
 
 function Canvas({ map, projectPath }: CanvasViewProps) {
   const { settings } = useSettings()
-  const { agents, focusedId } = useAgents()
+  const { agents, closed, focusedId } = useAgents()
   const rf = useReactFlow()
   const paneW = useStore((s) => s.width)
   const paneH = useStore((s) => s.height)
-  const [paletteOpen, setPaletteOpen] = useState(false)
+  // null = closed; otherwise the palette's starting query.
+  const [palette, setPalette] = useState<string | null>(null)
   const [detail, setDetail] = useState<DetailItem | null>(null)
   const pendingFocus = useRef<string | null>(null)
   const dragged = useRef(new Map<string, { x: number; y: number }>())
@@ -230,7 +231,7 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         e.stopPropagation()
-        setPaletteOpen((o) => !o)
+        setPalette((p) => (p === null ? '' : null))
       }
     }
     window.addEventListener('keydown', onKey, true)
@@ -246,8 +247,19 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
     ]
     for (const a of agents) items.push({ id: a.id, label: displayName(personaFor(a.id), a.name), hint: `Agent · ${STATUS_LABEL[statusOf(a)]}`, dot: statusOf(a), run: () => openAgent(a.id) })
     for (const s of systems) items.push({ id: s.id, label: s.label, hint: 'System', run: () => flyToNode(s.id, SYSTEM_W, SYSTEM_H, 1.4) })
+    for (const c of closed) {
+      items.push({
+        id: `reopen-${c.id}`,
+        label: `Reopen ${displayName(personaFor(c.id), c.name)}`,
+        hint: `Stopped ${ago(c.closedAt ?? Date.now())}`,
+        run: () => {
+          const id = agentStore.reopen(c.id)
+          if (id) pendingFocus.current = id
+        }
+      })
+    }
     return items
-  }, [agents, systems, overview, createAgent, openAgent, flyToNode])
+  }, [agents, closed, systems, overview, createAgent, openAgent, flyToNode])
 
   const stripAgents = useMemo(() => {
     const now = Date.now()
@@ -292,7 +304,16 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
         proOptions={{ hideAttribution: true }}
       />
 
-      <AttentionStrip agents={stripAgents} focusedId={focusedId} onOpen={openAgent} onOverview={overview} onNew={createAgent} onPalette={() => setPaletteOpen(true)} />
+      <AttentionStrip
+        agents={stripAgents}
+        closedCount={closed.length}
+        focusedId={focusedId}
+        onOpen={openAgent}
+        onOverview={overview}
+        onNew={createAgent}
+        onPalette={() => setPalette('')}
+        onReopen={() => setPalette('Reopen ')}
+      />
 
       {!map && (
         <div className="canvas-hint">
@@ -303,7 +324,7 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
       {insideAgent && activities.get(insideAgent.id) && (
         <AgentSpace key={insideAgent.id} agent={insideAgent} activity={activities.get(insideAgent.id)!} onBack={overview} onOpenAgent={openAgent} />
       )}
-      {paletteOpen && <CommandPalette items={paletteItems} onClose={() => setPaletteOpen(false)} />}
+      {palette !== null && <CommandPalette items={paletteItems} initialQuery={palette} onClose={() => setPalette(null)} />}
       {detail && <DetailPanel item={detail} onClose={() => setDetail(null)} />}
     </div>
     </ActivityContext.Provider>
@@ -313,20 +334,32 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
 
 const MOD = navigator.userAgent.includes('Mac') ? '⌘' : 'Ctrl+'
 
+function ago(at: number): string {
+  const m = Math.round((Date.now() - at) / 60000)
+  if (m < 1) return 'just now'
+  if (m < 60) return `${m}m ago`
+  const h = Math.round(m / 60)
+  return h < 48 ? `${h}h ago` : `${Math.round(h / 24)}d ago`
+}
+
 function AttentionStrip({
   agents,
+  closedCount,
   focusedId,
   onOpen,
   onOverview,
   onNew,
-  onPalette
+  onPalette,
+  onReopen
 }: {
   agents: Agent[]
+  closedCount: number
   focusedId: string | null
   onOpen: (id: string) => void
   onOverview: () => void
   onNew: (kind: AgentKind) => void
   onPalette: () => void
+  onReopen: () => void
 }) {
   return (
     <div className="attention-strip">
@@ -340,6 +373,11 @@ function AttentionStrip({
       <button className="strip-btn" onClick={() => onNew('claude')}>+ Claude</button>
       <button className="strip-btn" onClick={() => onNew('codex')}>+ Codex</button>
       <button className="strip-btn" onClick={() => onNew('shell')}>+ Shell</button>
+      {closedCount > 0 && (
+        <button className="strip-btn strip-reopen" onClick={onReopen} title="Reopen a stopped agent; its conversation resumes">
+          ↺ {closedCount}
+        </button>
+      )}
       {agents.length > 0 && <span className="strip-sep" />}
       <div className="strip-agents">
         {agents.map((a) => {

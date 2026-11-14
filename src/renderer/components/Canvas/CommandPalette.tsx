@@ -9,8 +9,8 @@ export interface PaletteItem {
   run: () => void
 }
 
-export function CommandPalette({ items, onClose }: { items: PaletteItem[]; onClose: () => void }) {
-  const [query, setQuery] = useState('')
+export function CommandPalette({ items, onClose, initialQuery = '' }: { items: PaletteItem[]; onClose: () => void; initialQuery?: string }) {
+  const [query, setQuery] = useState(initialQuery)
   const [index, setIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
 

@@ -45,6 +45,8 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   agents: {
+    load: () => ipcRenderer.invoke('agents:load'),
+    save: (project: string, data: unknown) => ipcRenderer.send('agents:save', project, data),
     onHook: (callback: (event: unknown) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, e: unknown) => callback(e)
       ipcRenderer.on('agent:hook', handler)
@@ -53,7 +55,7 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   terminal: {
-    spawn: (id: string, launch?: { kind: 'claude' | 'codex'; prompt?: string }) => ipcRenderer.invoke('terminal:spawn', id, launch),
+    spawn: (id: string, launch?: { kind: 'claude' | 'codex'; prompt?: string; resume?: string }) => ipcRenderer.invoke('terminal:spawn', id, launch),
 
     write: (id: string, data: string) => ipcRenderer.send('terminal:write', id, data),
 
