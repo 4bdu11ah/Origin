@@ -32,30 +32,26 @@ export function MapHeader({
   const summary = here ? summaryOf(here, lang) : lang === 'plain' ? ix.map.project.summary || ix.map.project.description : ix.map.project.description
   return (
     <div className="map-head" style={system ? ({ ['--sys' as string]: system.color } as CSSProperties) : undefined}>
-      <nav className="map-crumbs" aria-label="Where you are">
-        <button className={`crumb${!system ? ' is-here' : ''}`} onClick={() => onGo({})}>
-          <span className="crumb-icon">🗺️</span>
-          {ix.map.project.name}
-        </button>
-        {system && (
-          <>
-            <span className="crumb-sep">›</span>
-            <button className={`crumb${!feature ? ' is-here' : ''}`} onClick={() => onGo({ systemId: system.id })}>
-              <span className="crumb-icon">{systemIcon(system)}</span>
-              {titleOf(system, lang)}
-            </button>
-          </>
-        )}
-        {feature && (
-          <>
-            <span className="crumb-sep">›</span>
-            <span className="crumb is-here">
-              <span className="crumb-icon">{featureIcon(feature)}</span>
-              {titleOf(feature, lang)}
-            </span>
-          </>
-        )}
-      </nav>
+      {system && (
+        <nav className="map-crumbs" aria-label="Where you are">
+          <button className="crumb" onClick={() => onGo({})}>
+            {ix.map.project.name}
+          </button>
+          {feature && (
+            <>
+              <span className="crumb-sep">›</span>
+              <button className="crumb" onClick={() => onGo({ systemId: system.id })}>
+                {titleOf(system, lang)}
+              </button>
+            </>
+          )}
+          <span className="crumb-sep">›</span>
+        </nav>
+      )}
+      <h1 className="map-title">
+        <span className="map-title-icon">{feature ? featureIcon(feature) : system ? systemIcon(system) : '🗺️'}</span>
+        <span className="crumb is-here">{here ? titleOf(here, lang) : ix.map.project.name}</span>
+      </h1>
       <p className="map-summary">{summary}</p>
       <div className="map-head-actions">
         {agents.length > 0 && (

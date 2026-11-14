@@ -13,7 +13,7 @@ import { Avatar } from './Avatar'
 import { displayName, personaFor } from './personas'
 import { useWorkspace, type Screen } from '../Workspace/WorkspaceContext'
 import { askPrompt, buildScene, indexMap, titleOf, validPath, workPrompt, type Lang, type LinkData, type MapPath } from './mapScene'
-import { MapLiveContext, mapNodeTypes, type MapLive } from './MapNodes'
+import { MapLiveContext, mapEdgeTypes, mapNodeTypes, type EdgeView, type MapLive } from './MapNodes'
 import { LangSwitch, MapHeader, PiecePanel, ShapeKey } from './MapChrome'
 import './Canvas.css'
 import './Map.css'
@@ -121,7 +121,7 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
   const panelOpen = useRef(false)
   const fit = useCallback(
     (duration = 0) =>
-      rf.fitView({ padding: { top: '236px', bottom: '48px', left: '48px', right: panelOpen.current ? '400px' : '48px' }, maxZoom: 1.15, duration }),
+      rf.fitView({ padding: { top: '224px', bottom: '48px', left: '48px', right: panelOpen.current ? '400px' : '48px' }, maxZoom: 1.15, duration }),
     [rf]
   )
 
@@ -277,22 +277,22 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
     [ix, lang, agentsIn, changing, selected, openAgent]
   )
 
-  // Lines stay quiet until you point at something; then its lines and their words come forward.
+  // Lines stay quiet until you point at something; then its lines and their
+  // words come forward. Words show by default only where they stay readable.
   const edges = useMemo<Edge[]>(() => {
     const focus = hovered ?? selected
+    const inner = scene.edges.filter((e) => (e.data as LinkData).kind === 'link').length
     return scene.edges.map((e) => {
       const d = e.data as LinkData
       const lit = !!focus && (e.source === focus || e.target === focus)
-      const showText = !!d.text && (d.kind === 'journey' || lit || !!here.systemId)
+      const calm = d.kind === 'journey' || (d.kind === 'link' && !!here.systemId && inner <= 6)
+      const hidden = !here.systemId && d.kind === 'link' && !lit
       return {
         ...e,
         animated: d.kind === 'journey',
-        // On the product view only the journey shows; other links appear when you point at an area.
-        className: `${e.className}${lit ? ' is-lit' : ''}${focus && !lit ? ' is-dim' : ''}${!here.systemId && d.kind === 'link' && !lit ? ' is-hidden' : ''}`,
-        label: showText ? d.text : undefined,
-        markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color: d.kind === 'journey' ? 'var(--accent)' : 'var(--text-tertiary)' },
-        labelBgPadding: [8, 4] as [number, number],
-        labelBgBorderRadius: 8
+        className: `${e.className}${lit ? ' is-lit' : ''}${focus && !lit ? ' is-dim' : ''}${hidden ? ' is-hidden' : ''}`,
+        data: { ...d, lit, showText: !!d.text && !hidden && (lit || (calm && !focus) || d.kind === 'journey') } satisfies EdgeView,
+        markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color: d.kind === 'journey' ? 'var(--accent)' : lit ? 'var(--text-secondary)' : 'var(--text-tertiary)' }
       }
     })
   }, [scene.edges, hovered, selected, here.systemId])
@@ -365,16 +365,18 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
           nodes={scene.nodes}
           edges={edges}
           nodeTypes={mapNodeTypes}
+          edgeTypes={mapEdgeTypes}
           nodesConnectable={false}
           nodesDraggable={false}
           elementsSelectable={false}
           onNodeClick={(_e, node) => {
+            if (node.type === 'zone') return
             if (node.type === 'area') go({ systemId: node.id }, node.id)
             else if (node.type === 'part') go({ systemId: here.systemId, featureId: node.id }, node.id)
             else if (node.type === 'piece') setSelected((s) => (s === node.id ? null : node.id))
             else if (node.type === 'ghost') go((node.data as { target: MapPath }).target, node.id)
           }}
-          onNodeMouseEnter={(_e, node) => setHovered(node.id)}
+          onNodeMouseEnter={(_e, node) => node.type !== 'zone' && setHovered(node.id)}
           onNodeMouseLeave={() => setHovered(null)}
           onPaneClick={() => {
             setSelected(null)

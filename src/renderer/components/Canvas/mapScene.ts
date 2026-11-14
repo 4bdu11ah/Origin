@@ -1,5 +1,5 @@
 import dagre from 'dagre'
-import { MarkerType, type Edge, type Node } from '@xyflow/react'
+import type { Edge, Node } from '@xyflow/react'
 import type { CodeNode, EdgeType, Feature, MapEdge, NodeType, OriginMap, System } from '../../types/map'
 
 // The codebase as a picture you can walk into. Three levels:
@@ -15,10 +15,10 @@ export interface MapPath {
   featureId?: string
 }
 
-export const TILE = { w: 280, h: 184 }
-export const PART = { w: 264, h: 176 }
-export const PIECE = { w: 236, h: 112 }
-export const GHOST = { w: 212, h: 60 }
+export const TILE = { w: 288, h: 188 }
+export const PART = { w: 272, h: 176 }
+export const PIECE = { w: 244, h: 116 }
+export const GHOST = { w: 240, h: 58 }
 
 export interface PieceKind {
   label: string
@@ -177,13 +177,17 @@ function layered(boxes: Box[], links: Link[], gap = { node: 56, rank: 150 }): Ma
 }
 
 const SIDE = { right: 'right', left: 'left', top: 'top', bottom: 'bottom' } as const
+type Rect = { x: number; y: number; w: number; h: number }
 
-/** Pick the sides that face each other so lines stay short and calm. */
-function sides(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) {
-  const dx = b.x + b.w / 2 - (a.x + a.w / 2)
-  const dy = b.y + b.h / 2 - (a.y + a.h / 2)
-  if (Math.abs(dx) * 0.6 >= Math.abs(dy)) return dx >= 0 ? [SIDE.right, SIDE.left] : [SIDE.left, SIDE.right]
-  return dy >= 0 ? [SIDE.bottom, SIDE.top] : [SIDE.top, SIDE.bottom]
+/**
+ * Lines leave from the side facing their target. Forward links run right to
+ * left; anything in the same column goes straight up or down, so lines never
+ * loop around a box.
+ */
+function sides(a: Rect, b: Rect) {
+  if (b.x >= a.x + a.w - 8) return [SIDE.right, SIDE.left]
+  if (b.x + b.w <= a.x + 8) return [SIDE.left, SIDE.right]
+  return b.y >= a.y ? [SIDE.bottom, SIDE.top] : [SIDE.top, SIDE.bottom]
 }
 
 function toScene(
@@ -213,17 +217,21 @@ function toScene(
         target: l.to,
         sourceHandle: `s-${s}`,
         targetHandle: `t-${t}`,
-        type: 'default',
+        type: 'map',
         className: `map-link is-${l.kind}`,
-        markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
         data: { kind: l.kind, text: l.text, count: l.count } satisfies LinkData
       }
     })
-  return { nodes: [...nodes, ...extra], edges }
+  return { nodes: [...extra, ...nodes], edges }
 }
 
-function lane(id: string, x: number, y: number, plain: string, tech: string): Node {
-  return { id, type: 'lane', position: { x, y }, draggable: false, selectable: false, data: { plain, tech } }
+/** A soft, labelled region behind a group of boxes. */
+function zone(id: string, boxes: Rect[], plain: string, tech: string, pad = 22): Node {
+  const x = Math.min(...boxes.map((b) => b.x)) - pad
+  const y = Math.min(...boxes.map((b) => b.y)) - pad - 26
+  const w = Math.max(...boxes.map((b) => b.x + b.w)) + pad - x
+  const h = Math.max(...boxes.map((b) => b.y + b.h)) + pad - y
+  return { id, type: 'zone', position: { x, y }, width: w, height: h, zIndex: -1, draggable: false, selectable: false, data: { plain, tech } }
 }
 
 const pieceCount = (s: System) => s.features.reduce((n, f) => n + f.nodes.length, 0)
@@ -261,8 +269,8 @@ function productScene(ix: MapIndex): Scene {
 
   // The journey reads like a path: left to right, then back the other way on
   // the next row, numbered so the order is never in doubt.
-  const GAP_X = 176
-  const GAP_Y = 120
+  const GAP_X = 132
+  const GAP_Y = 110
   const perRow = main.length <= 5 ? main.length : Math.ceil(main.length / 2)
   const rows = Math.ceil(main.length / perRow)
   const pos = new Map<string, { x: number; y: number }>()
@@ -273,35 +281,82 @@ function productScene(ix: MapIndex): Scene {
   })
   const mainW = perRow * TILE.w + (perRow - 1) * GAP_X
   const supPerRow = Math.max(perRow, 4)
-  const supY = rows * (TILE.h + GAP_Y) + 90
+  const supY = rows * (TILE.h + GAP_Y) + 40
   support.forEach((s, i) => {
     const row = Math.floor(i / supPerRow)
     const inRow = Math.min(supPerRow, support.length - row * supPerRow)
-    const rowW = inRow * TILE.w + (inRow - 1) * 56
-    pos.set(s.id, { x: mainW / 2 - rowW / 2 + (i % supPerRow) * (TILE.w + 56), y: supY + row * (TILE.h + 56) })
+    const rowW = inRow * TILE.w + (inRow - 1) * 40
+    pos.set(s.id, { x: mainW / 2 - rowW / 2 + (i % supPerRow) * (TILE.w + 40), y: supY + row * (TILE.h + 40) })
   })
-  const extra = [lane('lane-main', 0, -46, 'How it works', 'Main flow')]
-  if (support.length) {
-    const firstX = Math.min(...support.map((s) => pos.get(s.id)!.x))
-    extra.push(lane('lane-support', firstX, supY - 46, 'Behind the scenes', 'Supporting systems'))
-  }
+  const extra = support.length
+    ? [zone('zone-support', support.map((s) => ({ ...pos.get(s.id)!, w: TILE.w, h: TILE.h })), 'Behind the scenes', 'Supporting systems', 26)]
+    : []
   return toScene(items, links, pos, extra)
 }
 
-/** Context boxes: areas or parts outside this view that send things in or take things out. */
-function ghost(id: string, dir: 'in' | 'out', target: MapPath, ref: { systemId: string; featureId?: string }) {
-  return { id, w: GHOST.w, h: GHOST.h, type: 'ghost', data: { dir, target, ...ref } }
+/** Neighbours just outside this view: areas or parts that send things in or take things out. */
+function ghost(id: string, dir: 'in' | 'out', target: MapPath) {
+  return { id, w: GHOST.w, h: GHOST.h, type: 'ghost', data: { dir, target, systemId: target.systemId, featureId: target.featureId } }
+}
+
+/**
+ * Inside an area or a part: what comes in on the left, the inside in the
+ * middle (left to right in the order things happen), what goes out on the right.
+ */
+function framed(
+  inner: (Box & { type: string; data: Record<string, unknown> })[],
+  ghosts: Map<string, ReturnType<typeof ghost>>,
+  pairs: { from: string; to: string; text: string }[],
+  gap: { node: number; rank: number }
+): Scene {
+  const links = collapse(pairs, (from, to) => (from.startsWith('in:') || to.startsWith('out:') ? 'context' : 'link'))
+  // Lay everything out together so the inside lines up with what feeds it,
+  // then move the neighbours out into their own columns.
+  const pos = layered([...inner, ...ghosts.values()], links, gap)
+  for (const id of ghosts.keys()) pos.delete(id)
+
+  const rects = inner.map((b) => ({ ...pos.get(b.id)!, w: b.w, h: b.h }))
+  const minX = Math.min(...rects.map((r) => r.x))
+  const maxX = Math.max(...rects.map((r) => r.x + r.w))
+  const minY = Math.min(...rects.map((r) => r.y))
+  const maxY = Math.max(...rects.map((r) => r.y + r.h))
+
+  // Each neighbour sits level with what it touches, so lines stay short and flat.
+  const reach = (gid: string) => {
+    const ys = links
+      .filter((l) => l.from === gid || l.to === gid)
+      .map((l) => (l.from === gid ? l.to : l.from))
+      .filter((id) => pos.has(id))
+      .map((id) => pos.get(id)!.y + (inner.find((b) => b.id === id)?.h ?? 0) / 2)
+    return ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : (minY + maxY) / 2
+  }
+  const COL_GAP = 150
+  const extra: Node[] = []
+  for (const dir of ['in', 'out'] as const) {
+    const col = [...ghosts.values()].filter((g) => g.data.dir === dir).sort((a, b) => reach(a.id) - reach(b.id))
+    if (!col.length) continue
+    const x = dir === 'in' ? minX - COL_GAP - GHOST.w : maxX + COL_GAP
+    // A tight stack, ordered like what it touches, centred on it.
+    const mid = col.reduce((n, g) => n + reach(g.id), 0) / col.length
+    const stackH = col.length * GHOST.h + (col.length - 1) * 14
+    const top = Math.max(minY - 40, Math.min(mid - stackH / 2, maxY + 40 - stackH))
+    col.forEach((g, i) => pos.set(g.id, { x, y: top + i * (GHOST.h + 14) }))
+    extra.push(
+      zone(
+        `zone-${dir}`,
+        col.map((g) => ({ ...pos.get(g.id)!, w: GHOST.w, h: GHOST.h })),
+        dir === 'in' ? 'Comes from' : 'Goes to',
+        dir === 'in' ? 'Inputs' : 'Outputs',
+        16
+      )
+    )
+  }
+  return toScene([...inner, ...ghosts.values()], links, pos, extra)
 }
 
 function areaScene(ix: MapIndex, system: System): Scene {
   const inSys = (id: string) => ix.systemOf.get(id)?.id === system.id
-  const parts = system.features.map((f) => ({
-    id: f.id,
-    w: PART.w,
-    h: PART.h,
-    type: 'part',
-    data: { featureId: f.id, pieces: f.nodes.length }
-  }))
+  const parts = system.features.map((f) => ({ id: f.id, w: PART.w, h: PART.h, type: 'part', data: { featureId: f.id, pieces: f.nodes.length } }))
   const pairs: { from: string; to: string; text: string }[] = []
   const ghosts = new Map<string, ReturnType<typeof ghost>>()
   for (const e of ix.map.edges) {
@@ -313,17 +368,15 @@ function areaScene(ix: MapIndex, system: System): Scene {
     if (inSys(e.from) && inSys(e.to)) pairs.push({ from: fa, to: fb, text: edgeText(e) })
     else if (inSys(e.to)) {
       const id = `in:${a.id}`
-      ghosts.set(id, ghost(id, 'in', { systemId: a.id }, { systemId: a.id }))
+      ghosts.set(id, ghost(id, 'in', { systemId: a.id }))
       pairs.push({ from: id, to: fb, text: edgeText(e) })
     } else if (inSys(e.from)) {
       const id = `out:${b.id}`
-      ghosts.set(id, ghost(id, 'out', { systemId: b.id }, { systemId: b.id }))
+      ghosts.set(id, ghost(id, 'out', { systemId: b.id }))
       pairs.push({ from: fa, to: id, text: edgeText(e) })
     }
   }
-  const links = collapse(pairs, (from, to) => (from.startsWith('in:') || to.startsWith('out:') ? 'context' : 'link'))
-  const items = [...parts, ...ghosts.values()]
-  return toScene(items, links, layered(items, links))
+  return framed(parts, ghosts, pairs, { node: 48, rank: 150 })
 }
 
 function partScene(ix: MapIndex, system: System, feature: Feature): Scene {
@@ -335,10 +388,9 @@ function partScene(ix: MapIndex, system: System, feature: Feature): Scene {
     const s = ix.systemOf.get(nodeId)!
     const f = ix.featureOf.get(nodeId)!
     // A sibling part is shown by name; anything further away by its area.
-    const sibling = s.id === system.id
-    const id = `${dir}:${sibling ? f.id : s.id}`
-    if (!ghosts.has(id))
-      ghosts.set(id, ghost(id, dir, sibling ? { systemId: s.id, featureId: f.id } : { systemId: s.id }, sibling ? { systemId: s.id, featureId: f.id } : { systemId: s.id }))
+    const target = s.id === system.id ? { systemId: s.id, featureId: f.id } : { systemId: s.id }
+    const id = `${dir}:${target.featureId ?? target.systemId}`
+    if (!ghosts.has(id)) ghosts.set(id, ghost(id, dir, target))
     return id
   }
   for (const e of ix.map.edges) {
@@ -347,9 +399,7 @@ function partScene(ix: MapIndex, system: System, feature: Feature): Scene {
     else if (inPart(e.to)) pairs.push({ from: outside(e.from, 'in'), to: e.to, text: edgeText(e) })
     else if (inPart(e.from)) pairs.push({ from: e.from, to: outside(e.to, 'out'), text: edgeText(e) })
   }
-  const links = collapse(pairs, (from, to) => (from.startsWith('in:') || to.startsWith('out:') ? 'context' : 'link'))
-  const items = [...pieces, ...ghosts.values()]
-  return toScene(items, links, layered(items, links, { node: 44, rank: 140 }))
+  return framed(pieces, ghosts, pairs, { node: 36, rank: 130 })
 }
 
 export function buildScene(ix: MapIndex, path: MapPath): Scene {

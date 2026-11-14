@@ -1,9 +1,9 @@
 import { createContext, memo, useContext, type CSSProperties } from 'react'
-import { Handle, Position, type NodeProps } from '@xyflow/react'
+import { BaseEdge, EdgeLabelRenderer, getBezierPath, Handle, Position, type EdgeProps, type NodeProps } from '@xyflow/react'
 import { Avatar } from './Avatar'
 import { statusOf, type Agent } from './agentStore'
 import { personaFor, displayName } from './personas'
-import { featureIcon, GHOST, PART, PIECE, PIECE_KIND, summaryOf, systemIcon, TILE, titleOf, type Lang, type MapIndex } from './mapScene'
+import { featureIcon, GHOST, PART, PIECE, PIECE_KIND, summaryOf, systemIcon, TILE, titleOf, type Lang, type LinkData, type MapIndex } from './mapScene'
 import { STATUS_LABEL } from './agentStatus'
 
 // The shapes on the map. Areas and parts are tiles you can step into; pieces
@@ -81,7 +81,7 @@ export const AreaNode = memo(function AreaNode({ data }: NodeProps) {
       <div className="tile-title">{titleOf(s, lang)}</div>
       <div className="tile-summary">{summaryOf(s, lang)}</div>
       <div className="tile-foot">
-        {busy ? <span className="tile-busy">Changing now</span> : <span>{lang === 'plain' ? `${parts} parts · ${pieces} pieces` : `${parts} features · ${pieces} nodes`}</span>}
+        {busy ? <span className="tile-busy">Changing now</span> : <span>{lang === 'plain' ? `${parts} parts` : `${parts} features · ${pieces} nodes`}</span>}
         <span className="tile-open">Look inside →</span>
       </div>
     </div>
@@ -147,18 +147,47 @@ export const GhostNode = memo(function GhostNode({ data }: NodeProps) {
     <div className={`map-ghost dir-${dir}`} style={{ width: GHOST.w, height: GHOST.h, ['--sys' as string]: s.color } as CSSProperties} title={`Go to ${titleOf(f ?? s, lang)}`}>
       <Handles />
       <span className="ghost-icon">{f ? featureIcon(f) : systemIcon(s)}</span>
-      <span className="ghost-text">
-        <span className="ghost-dir">{dir === 'in' ? 'Comes from' : 'Goes to'}</span>
-        <span className="ghost-name">{titleOf(f ?? s, lang)}</span>
-      </span>
+      <span className="ghost-name">{titleOf(f ?? s, lang)}</span>
+      <span className="ghost-go">{dir === 'in' ? '←' : '→'}</span>
     </div>
   )
 })
 
-export const LaneNode = memo(function LaneNode({ data }: NodeProps) {
+export const ZoneNode = memo(function ZoneNode({ data }: NodeProps) {
   const { plain, tech } = data as { plain: string; tech: string }
   const { lang } = useLive()
-  return <span className="map-lane">{lang === 'plain' ? plain : tech}</span>
+  return (
+    <div className="map-zone">
+      <span className="map-zone-label">{lang === 'plain' ? plain : tech}</span>
+    </div>
+  )
 })
 
-export const mapNodeTypes = { area: AreaNode, part: PartNode, piece: PieceNode, ghost: GhostNode, lane: LaneNode }
+export const mapNodeTypes = { area: AreaNode, part: PartNode, piece: PieceNode, ghost: GhostNode, zone: ZoneNode }
+
+export interface EdgeView extends LinkData {
+  showText: boolean
+  lit: boolean
+}
+
+/** A line between two boxes; the journey gets a soft track under it. Words sit in a pill on the line. */
+export const MapEdge = memo(function MapEdge(props: EdgeProps) {
+  const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd } = props
+  const d = props.data as unknown as EdgeView
+  const [path, lx, ly] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, curvature: 0.35 })
+  return (
+    <>
+      {d.kind === 'journey' && <path d={path} className="map-track" />}
+      <BaseEdge id={id} path={path} markerEnd={markerEnd} />
+      {d.showText && (
+        <EdgeLabelRenderer>
+          <div className={`map-words is-${d.kind}${d.lit ? ' is-lit' : ''}`} style={{ transform: `translate(-50%, -50%) translate(${lx}px, ${ly}px)` }}>
+            {d.text}
+          </div>
+        </EdgeLabelRenderer>
+      )}
+    </>
+  )
+})
+
+export const mapEdgeTypes = { map: MapEdge }
