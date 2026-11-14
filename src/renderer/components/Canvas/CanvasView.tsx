@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Background, BackgroundVariant, MarkerType, ReactFlow, ReactFlowProvider, useReactFlow, useStore, type Edge } from '@xyflow/react'
+import { Background, BackgroundVariant, getNodesBounds, MarkerType, ReactFlow, ReactFlowProvider, useReactFlow, useStore, type Edge } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import type { OriginMap, System } from '../../types/map'
 import { useSettings } from '../../contexts/SettingsContext'
@@ -81,6 +81,18 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
   const [selected, setSelected] = useState<string | null>(null)
   const [hovered, setHovered] = useState<string | null>(null)
   const [fading, setFading] = useState(false)
+  // The map starts below the header, so nothing can slide underneath it.
+  const headRef = useRef<HTMLDivElement>(null)
+  const [stageTop, setStageTop] = useState(200)
+  useEffect(() => {
+    const el = headRef.current
+    if (!el) return
+    const measure = () => setStageTop(el.offsetTop + el.offsetHeight + 8)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [map])
   const [showAll, setShowAll] = useState<boolean>(() => readJSON('origin.mapAllLines', false))
   useEffect(() => writeJSON('origin.mapAllLines', showAll), [showAll])
 
@@ -119,12 +131,22 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
 
   // --- Moving around the map ---------------------------------------------------
   // Room at the top for the header card, so nothing hides behind it.
-  // With a piece open, keep clear of its card on the right.
-  const panelOpen = useRef(false)
+  // Fit the view to the stage: as large as fits (never past life size), centred
+  // across, and sitting just under the header rather than floating mid-screen.
   const fit = useCallback(
-    (duration = 0) =>
-      rf.fitView({ padding: { top: '224px', bottom: '48px', left: '48px', right: panelOpen.current ? '400px' : '48px' }, maxZoom: 1.15, duration }),
-    [rf]
+    (duration = 0) => {
+      const nodes = rf.getNodes()
+      if (!nodes.length || !paneW || !paneH) return
+      const b = getNodesBounds(nodes)
+      const pad = { top: 36, bottom: 56, left: 56, right: 56 }
+      const w = paneW - pad.left - pad.right
+      const h = paneH - pad.top - pad.bottom
+      const zoom = Math.max(0.2, Math.min(w / b.width, h / b.height, 1))
+      const x = pad.left + (w - b.width * zoom) / 2 - b.x * zoom
+      const y = pad.top + Math.max(0, (h - b.height * zoom) * 0.18) - b.y * zoom
+      rf.setViewport({ x, y, zoom }, { duration })
+    },
+    [rf, paneW, paneH]
   )
 
   // Step in (zoom toward what was clicked) or out (zoom away), fade, then swap the view.
@@ -168,11 +190,17 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
     if (paneW && paneH) fit()
   }, [paneW, paneH, fit])
 
+  // Opening a piece keeps the map as it is; if the piece would sit under its
+  // card on the right, the view slides left just enough to show it.
   useEffect(() => {
-    if (panelOpen.current === !!selected) return
-    panelOpen.current = !!selected
-    fit(300)
-  }, [selected, fit])
+    if (!selected) return
+    const node = rf.getNode(selected)
+    if (!node) return
+    const vp = rf.getViewport()
+    const right = (node.position.x + (node.width ?? 0)) * vp.zoom + vp.x
+    const limit = paneW - 372 - 32
+    if (right > limit) rf.setViewport({ ...vp, x: vp.x - (right - limit) }, { duration: 260 })
+  }, [selected, rf, paneW])
 
   const up = useCallback(() => {
     if (here.featureId) go({ systemId: here.systemId })
@@ -307,7 +335,8 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
         ...e,
         animated: d.kind === 'journey',
         className: `${e.className}${lit ? ' is-lit' : ''}${focus && !lit ? ' is-dim' : ''}${hidden ? ' is-hidden' : ''}`,
-        data: { ...d, lit, showText: words } satisfies EdgeView,
+        // Several lines into the pointed-at box would pile their words up beside it, so those sit at the far end.
+        data: { ...d, lit, showText: words, anchor: d.kind === 'journey' ? 'middle' : lit && e.target === focus ? 'source' : 'target' } satisfies EdgeView,
         markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color: d.kind === 'journey' ? 'var(--accent)' : lit ? 'var(--text-secondary)' : 'var(--text-tertiary)' }
       }
     })
@@ -377,6 +406,7 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
       }}
     >
       {ix && (
+        <div className="map-stage" style={{ top: stageTop }}>
         <ReactFlow
           nodes={scene.nodes}
           edges={edges}
@@ -384,6 +414,8 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
           edgeTypes={mapEdgeTypes}
           nodesConnectable={false}
           nodesDraggable={false}
+          nodesFocusable={false}
+          edgesFocusable={false}
           elementsSelectable={false}
           onNodeClick={(_e, node) => {
             if (node.type === 'zone') return
@@ -408,11 +440,14 @@ function Canvas({ map, projectPath }: CanvasViewProps) {
         >
           <Background variant={BackgroundVariant.Dots} gap={28} size={1.2} color="var(--border-subtle)" />
         </ReactFlow>
+        </div>
       )}
 
       {ix && (
         <>
+          <div className="map-head-wrap" ref={headRef}>
           <MapHeader ix={ix} path={here} lang={lang} agents={here.systemId ? agentsIn.get(here.systemId) ?? [] : []} onGo={(p) => go(p)} onAsk={() => ask(null)} onOpenAgent={openAgent} />
+          </div>
           <div className="map-corner">
             {here.systemId && (
               <button className="map-up" onClick={up} title="Go up a level (or double-click empty space)">

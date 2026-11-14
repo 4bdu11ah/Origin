@@ -6,8 +6,21 @@
     var(--bg-primary);
 }
 
+.map-stage {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  overflow: hidden;
+}
+
 .canvas-view .react-flow__viewport {
   transition: opacity 200ms ease;
+}
+
+.canvas-view .react-flow__node:focus,
+.canvas-view .react-flow__node:focus-visible {
+  outline: none;
 }
 
 .canvas-view.is-fading .react-flow__viewport {
@@ -843,17 +856,16 @@
 
 /* --- Header: where you are, as a title ------------------------------------------ */
 
-.map-head {
+.map-head-wrap {
   position: absolute;
   top: 56px;
   left: 16px;
   z-index: 5;
-  box-sizing: border-box;
-  max-width: min(620px, calc(100% - 400px));
-  padding: 10px 14px 12px;
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--bg-primary) 82%, transparent);
-  backdrop-filter: blur(10px);
+  max-width: min(640px, calc(100% - 420px));
+}
+
+.map-head {
+  padding: 8px 12px 4px;
 }
 
 .map-crumbs {

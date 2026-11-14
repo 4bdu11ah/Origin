@@ -53,7 +53,9 @@ const VERB: Record<EdgeType, string> = {
 export const titleOf = (x: { label: string; title?: string }, lang: Lang): string => (lang === 'plain' ? x.title || x.label : x.label)
 export const summaryOf = (x: { description: string; summary?: string }, lang: Lang): string =>
   lang === 'plain' ? x.summary || x.description : x.description
-export const edgeText = (e: MapEdge): string => e.plain || e.label || VERB[e.type] || ''
+/** Words for a line. Trailing joining words ("via", "to") read badly on their own, so they go. */
+export const edgeText = (e: MapEdge): string =>
+  (e.plain || e.label || VERB[e.type] || '').replace(/\s+(via|to|from|with|for|into|onto|on|by)$/i, '')
 export const systemIcon = (s: System): string => s.icon || '📦'
 export const featureIcon = (f: Feature): string => f.icon || '🧩'
 
@@ -349,7 +351,7 @@ function framed(
       .map((id) => pos.get(id)!.y + (inner.find((b) => b.id === id)?.h ?? 0) / 2)
     return ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : (minY + maxY) / 2
   }
-  const COL_GAP = 120
+  const COL_GAP = 176
   for (const dir of ['in', 'out'] as const) {
     const col = [...ghosts.values()].filter((g) => g.data.dir === dir).sort((a, b) => reach(a.id) - reach(b.id))
     if (!col.length) continue
@@ -384,7 +386,7 @@ function areaScene(ix: MapIndex, system: System): Scene {
       pairs.push({ from: fa, to: id, text: edgeText(e) })
     }
   }
-  return framed(parts, ghosts, pairs, { node: 48, rank: 150 })
+  return framed(parts, ghosts, pairs, { node: 44, rank: 176 })
 }
 
 function partScene(ix: MapIndex, system: System, feature: Feature): Scene {
@@ -407,7 +409,7 @@ function partScene(ix: MapIndex, system: System, feature: Feature): Scene {
     else if (inPart(e.to)) pairs.push({ from: outside(e.from, 'in'), to: e.to, text: edgeText(e) })
     else if (inPart(e.from)) pairs.push({ from: e.from, to: outside(e.to, 'out'), text: edgeText(e) })
   }
-  return framed(pieces, ghosts, pairs, { node: 36, rank: 130 })
+  return framed(pieces, ghosts, pairs, { node: 32, rank: 168 })
 }
 
 export function buildScene(ix: MapIndex, path: MapPath): Scene {

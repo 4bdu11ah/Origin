@@ -177,6 +177,20 @@ export const mapNodeTypes = { area: AreaNode, part: PartNode, piece: PieceNode, 
 export interface EdgeView extends LinkData {
   showText: boolean
   lit: boolean
+  /** Which end the words sit beside. Words beside a box sit in the free gap next to it, never on another box. */
+  anchor: 'middle' | 'source' | 'target'
+}
+
+function wordsAt(
+  anchor: EdgeView['anchor'],
+  e: Pick<EdgeProps, 'sourceX' | 'sourceY' | 'targetX' | 'targetY' | 'sourcePosition' | 'targetPosition'>,
+  lx: number,
+  ly: number
+): string {
+  const GAP = 14
+  if (anchor === 'target' && e.targetPosition === Position.Left) return `translate(-100%, -50%) translate(${e.targetX - GAP}px, ${e.targetY}px)`
+  if (anchor === 'source' && e.sourcePosition === Position.Right) return `translate(0, -50%) translate(${e.sourceX + GAP}px, ${e.sourceY}px)`
+  return `translate(-50%, -50%) translate(${lx}px, ${ly}px)`
 }
 
 /** A line between two boxes; the journey gets a soft track under it. Words sit in a pill on the line. */
@@ -190,7 +204,7 @@ export const MapEdge = memo(function MapEdge(props: EdgeProps) {
       <BaseEdge id={id} path={path} markerEnd={markerEnd} />
       {d.showText && (
         <EdgeLabelRenderer>
-          <div className={`map-words is-${d.kind}${d.lit ? ' is-lit' : ''}`} style={{ transform: `translate(-50%, -50%) translate(${lx}px, ${ly}px)` }}>
+          <div className={`map-words is-${d.kind}${d.lit ? ' is-lit' : ''}`} style={{ transform: wordsAt(d.anchor, { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition }, lx, ly) }}>
             {d.text}
           </div>
         </EdgeLabelRenderer>
